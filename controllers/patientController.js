@@ -5,7 +5,7 @@ const Patient = require('../models/Patient');
 // @access  Private/Receptionist
 exports.registerPatient = async (req, res) => {
   try {
-    const { fullName, mobileNumber, address, age, disease, doctor } = req.body;
+    const { fullName, mobileNumber, address, age, disease, doctor, fees } = req.body;
 
     // Validation
     if (!fullName || !mobileNumber || !address || !age || !disease || !doctor) {
@@ -40,6 +40,7 @@ exports.registerPatient = async (req, res) => {
       age,
       disease,
       doctor,
+      fees: fees || 0,
       tokenNumber
     });
 
@@ -101,7 +102,7 @@ exports.getTodayPatients = async (req, res) => {
 exports.getAllPatients = async (req, res) => {
   try {
     const patients = await Patient.find()
-      .populate('doctor', 'fullName specialization')
+      .populate('doctor', 'fullName specialization fees')
       .sort({ createdAt: -1 });
 
     res.status(200).json({

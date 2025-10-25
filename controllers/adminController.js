@@ -29,7 +29,7 @@ exports.getAllUsers = async (req, res) => {
 // @access  Private/Admin
 exports.createUser = async (req, res) => {
   try {
-    const { fullName, email, password, role, specialization, mobileNumber } = req.body;
+    const { fullName, email, password, role, specialization, fees, mobileNumber } = req.body;
 
     // Validation
     if (!fullName || !email || !password || !role) {
@@ -55,6 +55,7 @@ exports.createUser = async (req, res) => {
       password,
       role,
       specialization,
+      fees: fees ? Number(fees) : undefined,
       mobileNumber
     });
 
@@ -66,6 +67,7 @@ exports.createUser = async (req, res) => {
         email: user.email,
         role: user.role,
         specialization: user.specialization,
+        fees: user.fees,
         mobileNumber: user.mobileNumber
       }
     });
@@ -83,7 +85,7 @@ exports.createUser = async (req, res) => {
 // @access  Private/Admin
 exports.updateUser = async (req, res) => {
   try {
-    const { fullName, email, role, specialization, mobileNumber, isActive } = req.body;
+    const { fullName, email, role, specialization, fees, mobileNumber, isActive } = req.body;
 
     const user = await User.findById(req.params.id);
 
@@ -99,6 +101,7 @@ exports.updateUser = async (req, res) => {
     if (email) user.email = email;
     if (role) user.role = role;
     if (specialization) user.specialization = specialization;
+    if (fees !== undefined) user.fees = fees ? Number(fees) : undefined;
     if (mobileNumber) user.mobileNumber = mobileNumber;
     if (isActive !== undefined) user.isActive = isActive;
 

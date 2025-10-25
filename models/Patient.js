@@ -32,6 +32,10 @@ const patientSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  fees: {
+    type: Number,
+    default: 0
+  },
   tokenNumber: {
     type: Number,
     required: true

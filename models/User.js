@@ -28,6 +28,10 @@ const userSchema = new mongoose.Schema({
   specialization: {
     type: String
   },
+  fees: {
+    type: Number,
+    min: 0
+  },
   mobileNumber: {
     type: String
   },
