@@ -1,4 +1,5 @@
 const Patient = require('../models/Patient');
+const User = require('../models/User');
 
 // @desc    Register new patient
 // @route   POST /api/patient/register
@@ -20,6 +21,35 @@ exports.registerPatient = async (req, res) => {
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Check doctor's daily patient limit
+    const doctorUser = await User.findById(doctor);
+    if (!doctorUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Doctor not found'
+      });
+    }
+
+    // Count today's patients for this doctor
+    const todayPatientCount = await Patient.countDocuments({
+      doctor: doctor,
+      registrationDate: {
+        $gte: today,
+        $lt: tomorrow
+      }
+    });
+
+    // Check if limit is reached
+    if (todayPatientCount >= doctorUser.dailyPatientLimit) {
+      return res.status(400).json({
+        success: false,
+        message: `Doctor ${doctorUser.fullName} has reached their daily patient limit of ${doctorUser.dailyPatientLimit}. Please select another doctor or try tomorrow.`,
+        limitReached: true,
+        doctorName: doctorUser.fullName,
+        dailyLimit: doctorUser.dailyPatientLimit
+      });
+    }
 
     // Get the last token number for today
     const lastPatient = await Patient.findOne({
@@ -48,7 +78,9 @@ exports.registerPatient = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      data: patient
+      data: patient,
+      message: `Patient registered successfully. Token number: ${tokenNumber}`,
+      remainingSlots: doctorUser.dailyPatientLimit - todayPatientCount - 1
     });
   } catch (error) {
     res.status(500).json({

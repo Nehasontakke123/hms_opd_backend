@@ -11,9 +11,11 @@ const app = express();
 // Middleware
 const corsOptions = {
   origin: process.env.FRONTEND_URL || [
-    'http://localhost:3000', 
+    'http://localhost:3000',
+    'http://localhost:5173',
     'https://hms-opd-frontend-rq5u.vercel.app',
-    'https://hms-opd-frontend-ll9f.vercel.app'
+    'https://hms-opd-frontend-ll9f.vercel.app',
+    'https://hms-opd-frontend-tv7z.vercel.app'
   ],
   credentials: true
 };

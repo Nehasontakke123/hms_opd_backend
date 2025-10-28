@@ -38,6 +38,16 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  dailyPatientLimit: {
+    type: Number,
+    default: 20,
+    min: 1,
+    max: 100
+  },
+  lastLimitResetDate: {
+    type: Date,
+    default: Date.now
   }
 }, {
   timestamps: true
