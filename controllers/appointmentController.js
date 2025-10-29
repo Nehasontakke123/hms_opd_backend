@@ -52,27 +52,68 @@ export const createAppointment = async (req, res) => {
 
       const smsMessage = `Hello ${patientName}, your appointment with Dr. ${doctorUser.fullName}${doctorUser.specialization ? ` (${doctorUser.specialization})` : ''} is scheduled for ${appointmentDateFormatted} at ${appointmentTime}. Please arrive 15 minutes early. - Tekisky Hospital`;
 
+      console.log('📱 Attempting to send SMS...');
       const smsResult = await sendSMS(mobileNumber, smsMessage);
       
-      appointment.smsSent = true;
-      appointment.smsSentAt = new Date();
-      await appointment.save();
-
-      res.status(201).json({
-        success: true,
-        message: 'Appointment scheduled successfully and SMS sent to patient',
-        data: appointment,
-        smsSent: true
-      });
+      console.log('📱 SMS Result:', JSON.stringify(smsResult, null, 2));
+      
+      // Check if SMS was actually sent via real provider (not mock)
+      const isRealSMS = smsResult.success && 
+                       smsResult.provider && 
+                       !smsResult.provider.includes('mock') && 
+                       smsResult.provider !== 'mock';
+      
+      if (isRealSMS) {
+        appointment.smsSent = true;
+        appointment.smsSentAt = new Date();
+        await appointment.save();
+        console.log('✅ SMS marked as sent in database');
+        
+        res.status(201).json({
+          success: true,
+          message: 'Appointment scheduled successfully and SMS sent to patient',
+          data: appointment,
+          smsSent: true
+        });
+      } else {
+        console.warn('⚠️ SMS was not actually sent (mock mode or failed):', smsResult);
+        
+        // Check if it's mock mode
+        if (smsResult.provider === 'mock' || smsResult.provider?.includes('mock')) {
+          res.status(201).json({
+            success: true,
+            message: 'Appointment scheduled successfully, but SMS provider is not configured. Please configure Twilio credentials to send SMS.',
+            data: appointment,
+            smsSent: false,
+            smsNote: 'SMS provider not configured - currently in mock mode'
+          });
+        } else {
+          res.status(201).json({
+            success: true,
+            message: 'Appointment scheduled successfully, but SMS sending failed',
+            data: appointment,
+            smsSent: false,
+            smsError: 'SMS could not be sent. Please check server logs and SMS provider configuration.'
+          });
+        }
+      }
     } catch (smsError) {
-      console.error('Failed to send SMS:', smsError);
+      console.error('❌ Failed to send SMS:', smsError);
+      console.error('Error details:', {
+        message: smsError.message,
+        stack: smsError.stack,
+        response: smsError.response?.data
+      });
+      
       // Appointment is created but SMS failed
+      const errorMessage = smsError.message || 'SMS sending failed';
+      
       res.status(201).json({
         success: true,
         message: 'Appointment scheduled successfully, but SMS sending failed',
         data: appointment,
         smsSent: false,
-        smsError: process.env.NODE_ENV === 'development' ? smsError.message : undefined
+        smsError: process.env.NODE_ENV === 'development' ? errorMessage : 'SMS sending failed. Please check server logs for details.'
       });
     }
   } catch (error) {
