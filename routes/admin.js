@@ -1,12 +1,13 @@
-const express = require('express');
-const router = express.Router();
-const { protect, authorize } = require('../middleware/auth');
-const {
+import express from 'express';
+import { protect, authorize } from '../middleware/auth.js';
+import {
   getAllUsers,
   createUser,
   updateUser,
   deleteUser
-} = require('../controllers/adminController');
+} from '../controllers/adminController.js';
+
+const router = express.Router();
 
 // All routes require authentication and admin role
 router.use(protect);
@@ -20,4 +21,4 @@ router.route('/users/:id')
   .put(updateUser)
   .delete(deleteUser);
 
-module.exports = router;
+export default router;

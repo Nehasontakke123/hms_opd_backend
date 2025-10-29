@@ -1,10 +1,9 @@
-const User = require('../models/User');
-const generateToken = require('../utils/generateToken');
+import User from '../models/User.js';
 
 // @desc    Get all users (doctors and receptionists)
 // @route   GET /api/admin/users
 // @access  Private/Admin
-exports.getAllUsers = async (req, res) => {
+export const getAllUsers = async (req, res) => {
   try {
     const users = await User.find({ 
       role: { $in: ['doctor', 'receptionist'] } 
@@ -27,7 +26,7 @@ exports.getAllUsers = async (req, res) => {
 // @desc    Create new user (doctor or receptionist)
 // @route   POST /api/admin/users
 // @access  Private/Admin
-exports.createUser = async (req, res) => {
+export const createUser = async (req, res) => {
   try {
     const { fullName, email, password, role, specialization, fees, mobileNumber } = req.body;
 
@@ -83,7 +82,7 @@ exports.createUser = async (req, res) => {
 // @desc    Update user
 // @route   PUT /api/admin/users/:id
 // @access  Private/Admin
-exports.updateUser = async (req, res) => {
+export const updateUser = async (req, res) => {
   try {
     const { fullName, email, role, specialization, fees, mobileNumber, isActive } = req.body;
 
@@ -123,7 +122,7 @@ exports.updateUser = async (req, res) => {
 // @desc    Delete user
 // @route   DELETE /api/admin/users/:id
 // @access  Private/Admin
-exports.deleteUser = async (req, res) => {
+export const deleteUser = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
 

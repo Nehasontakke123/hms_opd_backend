@@ -1,10 +1,11 @@
-const express = require('express');
-const router = express.Router();
-const { protect } = require('../middleware/auth');
-const {
+import express from 'express';
+import { protect } from '../middleware/auth.js';
+import {
   createPrescription,
   getPatientById
-} = require('../controllers/prescriptionController');
+} from '../controllers/prescriptionController.js';
+
+const router = express.Router();
 
 // All routes require authentication
 router.use(protect);
@@ -12,4 +13,4 @@ router.use(protect);
 router.put('/:patientId', createPrescription);
 router.get('/patient/:patientId', getPatientById);
 
-module.exports = router;
+export default router;

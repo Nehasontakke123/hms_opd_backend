@@ -1,11 +1,28 @@
-const Patient = require('../models/Patient');
+import Patient from '../models/Patient.js';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Ensure medical section directory exists
+const medicalSectionPath = path.join(__dirname, '../medical_records');
+
+const ensureMedicalDir = async () => {
+  try {
+    await fs.access(medicalSectionPath);
+  } catch {
+    await fs.mkdir(medicalSectionPath, { recursive: true });
+  }
+};
 
 // @desc    Create/Update prescription
 // @route   PUT /api/prescription/:patientId
 // @access  Private/Doctor
-exports.createPrescription = async (req, res) => {
+export const createPrescription = async (req, res) => {
   try {
-    const { diagnosis, medicines, notes } = req.body;
+    const { diagnosis, medicines, notes, pdfData } = req.body;
 
     // Validation
     if (!diagnosis || !medicines || medicines.length === 0) {
@@ -24,12 +41,38 @@ exports.createPrescription = async (req, res) => {
       });
     }
 
+    let pdfPath = null;
+
+    // Save PDF to medical section if provided
+    if (pdfData) {
+      try {
+        await ensureMedicalDir();
+        
+        // Generate filename
+        const date = new Date().toISOString().split('T')[0];
+        const patientName = patient.fullName.replace(/\s/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+        const fileName = `prescription_${patientName}_${patient.tokenNumber}_${date}.pdf`;
+        const filePath = path.join(medicalSectionPath, fileName);
+
+        // Convert base64 to buffer and save
+        const base64Data = pdfData.replace(/^data:application\/pdf;base64,/, '');
+        const pdfBuffer = Buffer.from(base64Data, 'base64');
+        await fs.writeFile(filePath, pdfBuffer);
+
+        pdfPath = `/medical_records/${fileName}`;
+      } catch (pdfError) {
+        console.error('Error saving PDF:', pdfError);
+        // Continue even if PDF save fails
+      }
+    }
+
     // Update prescription
     patient.prescription = {
       diagnosis,
       medicines,
       notes: notes || '',
-      createdAt: new Date()
+      createdAt: new Date(),
+      pdfPath: pdfPath || patient.prescription?.pdfPath || null
     };
 
     patient.status = 'completed';
@@ -39,7 +82,8 @@ exports.createPrescription = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: patient
+      data: patient,
+      message: pdfPath ? 'Prescription saved and PDF stored in medical section' : 'Prescription saved'
     });
   } catch (error) {
     res.status(500).json({
@@ -53,7 +97,7 @@ exports.createPrescription = async (req, res) => {
 // @desc    Get patient by ID
 // @route   GET /api/prescription/patient/:patientId
 // @access  Private
-exports.getPatientById = async (req, res) => {
+export const getPatientById = async (req, res) => {
   try {
     const patient = await Patient.findById(req.params.patientId)
       .populate('doctor', 'fullName specialization email');

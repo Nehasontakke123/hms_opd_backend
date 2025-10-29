@@ -1,10 +1,10 @@
-const User = require('../models/User');
-const generateToken = require('../utils/generateToken');
+import User from '../models/User.js';
+import generateToken from '../utils/generateToken.js';
 
 // @desc    Login user
 // @route   POST /api/auth/login
 // @access  Public
-exports.login = async (req, res) => {
+export const login = async (req, res) => {
   try {
     const { email, password, role } = req.body;
 

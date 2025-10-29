@@ -1,12 +1,19 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const connectDB = require('./config/db');
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { connectDB } from './config/db.js';
+import authRoutes from './routes/auth.js';
+import adminRoutes from './routes/admin.js';
+import doctorRoutes from './routes/doctor.js';
+import patientRoutes from './routes/patient.js';
+import prescriptionRoutes from './routes/prescription.js';
+import appointmentRoutes from './routes/appointment.js';
 
 // Load environment variables
 dotenv.config();
-connectDB()
+connectDB();
+
 const app = express();
 
 // Middleware
@@ -29,11 +36,15 @@ app.get('/api/health', (req, res) => {
 });
 
 // Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/admin', require('./routes/admin'));
-app.use('/api/doctor', require('./routes/doctor'));
-app.use('/api/patient', require('./routes/patient'));
-app.use('/api/prescription', require('./routes/prescription'));
+app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/doctor', doctorRoutes);
+app.use('/api/patient', patientRoutes);
+app.use('/api/prescription', prescriptionRoutes);
+app.use('/api/appointment', appointmentRoutes);
+
+// Serve medical records (prescription PDFs)
+app.use('/medical_records', express.static('medical_records'));
 
 
 

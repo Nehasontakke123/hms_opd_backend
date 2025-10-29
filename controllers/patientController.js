@@ -1,10 +1,10 @@
-const Patient = require('../models/Patient');
-const User = require('../models/User');
+import Patient from '../models/Patient.js';
+import User from '../models/User.js';
 
 // @desc    Register new patient
 // @route   POST /api/patient/register
 // @access  Private/Receptionist
-exports.registerPatient = async (req, res) => {
+export const registerPatient = async (req, res) => {
   try {
     const { fullName, mobileNumber, address, age, disease, doctor, fees } = req.body;
 
@@ -94,7 +94,7 @@ exports.registerPatient = async (req, res) => {
 // @desc    Get patients for today by doctor
 // @route   GET /api/patient/today/:doctorId
 // @access  Private
-exports.getTodayPatients = async (req, res) => {
+export const getTodayPatients = async (req, res) => {
   try {
     const doctorId = req.params.doctorId;
 
@@ -131,7 +131,7 @@ exports.getTodayPatients = async (req, res) => {
 // @desc    Get all patients
 // @route   GET /api/patient
 // @access  Private
-exports.getAllPatients = async (req, res) => {
+export const getAllPatients = async (req, res) => {
   try {
     const patients = await Patient.find()
       .populate('doctor', 'fullName specialization fees')

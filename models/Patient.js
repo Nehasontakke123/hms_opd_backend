@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const patientSchema = new mongoose.Schema({
   fullName: {
@@ -57,7 +57,8 @@ const patientSchema = new mongoose.Schema({
       duration: String
     }],
     notes: String,
-    createdAt: Date
+    createdAt: Date,
+    pdfPath: String // Path to PDF file in medical section
   }
 }, {
   timestamps: true
@@ -67,4 +68,4 @@ const patientSchema = new mongoose.Schema({
 patientSchema.index({ doctor: 1, registrationDate: -1 });
 patientSchema.index({ tokenNumber: 1, registrationDate: 1 });
 
-module.exports = mongoose.model('Patient', patientSchema);
+export default mongoose.model('Patient', patientSchema);

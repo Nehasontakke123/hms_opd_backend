@@ -1,8 +1,9 @@
-const express = require('express');
+import express from 'express';
+import { protect } from '../middleware/auth.js';
+import User from '../models/User.js';
+import Patient from '../models/Patient.js';
+
 const router = express.Router();
-const { protect } = require('../middleware/auth');
-const User = require('../models/User');
-const Patient = require('../models/Patient');
 
 // Get all doctors
 router.get('/', protect, async (req, res) => {
@@ -133,4 +134,4 @@ router.get('/:doctorId/stats', protect, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
