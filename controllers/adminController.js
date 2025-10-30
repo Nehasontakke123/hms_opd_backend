@@ -5,8 +5,8 @@ import User from '../models/User.js';
 // @access  Private/Admin
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find({ 
-      role: { $in: ['doctor', 'receptionist'] } 
+  const users = await User.find({ 
+      role: { $in: ['doctor', 'receptionist', 'medical'] } 
     }).select('-password').sort({ createdAt: -1 });
 
     res.status(200).json({

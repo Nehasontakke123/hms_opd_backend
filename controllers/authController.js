@@ -66,3 +66,36 @@ export const login = async (req, res) => {
     });
   }
 };
+
+// @desc    Seed default medical user on deployed backend
+// @route   POST /api/auth/seed/medical
+// @access  Protected via SEED_KEY
+export const seedMedical = async (req, res) => {
+  try {
+    const providedKey = req.query.key || req.body.key;
+    if (!process.env.SEED_KEY || providedKey !== process.env.SEED_KEY) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+
+    const email = 'medical@tekisky.com';
+    let user = await User.findOne({ email });
+    if (user) {
+      user.role = 'medical';
+      user.isActive = true;
+      if (req.body.password) user.password = req.body.password;
+      await user.save();
+      return res.status(200).json({ success: true, message: 'Medical user ensured', email });
+    }
+
+    user = await User.create({
+      fullName: 'Medical Staff',
+      email,
+      password: req.body.password || 'medical123',
+      role: 'medical',
+      isActive: true
+    });
+    return res.status(201).json({ success: true, message: 'Medical user created', email });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};

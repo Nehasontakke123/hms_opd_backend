@@ -82,10 +82,10 @@ export const createAppointment = async (req, res) => {
         if (smsResult.provider === 'mock' || smsResult.provider?.includes('mock')) {
           res.status(201).json({
             success: true,
-            message: 'Appointment scheduled successfully, but SMS provider is not configured. Please configure Twilio credentials to send SMS.',
+            message: 'Appointment scheduled successfully! ✅ (SMS will be enabled after adding TextLocal API key - see backend/GET_TEXTLOCAL_API_KEY.md)',
             data: appointment,
             smsSent: false,
-            smsNote: 'SMS provider not configured - currently in mock mode'
+            smsNote: 'Appointment saved. SMS setup: Get free API key from textlocal.in/signup (5 min setup)'
           });
         } else {
           res.status(201).json({
