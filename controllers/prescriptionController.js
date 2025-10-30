@@ -2,11 +2,12 @@ import Patient from '../models/Patient.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { v2 as cloudinary } from 'cloudinary';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Ensure medical section directory exists
+// Ensure medical section directory exists (used as fallback when Cloudinary is not configured)
 const medicalSectionPath = path.join(__dirname, '../medical_records');
 
 const ensureMedicalDir = async () => {
@@ -43,26 +44,52 @@ export const createPrescription = async (req, res) => {
 
     let pdfPath = null;
 
-    // Save PDF to medical section if provided
+    // Save/upload PDF if provided
     if (pdfData) {
       try {
-        await ensureMedicalDir();
-        
-        // Generate filename
+        // Convert base64 to buffer (handle optional filename parameter)
+        const base64Data = pdfData.replace(/^data:application\/pdf(?:;filename=[^;]+)?;base64,/, '');
+        const pdfBuffer = Buffer.from(base64Data, 'base64');
+
         const date = new Date().toISOString().split('T')[0];
         const patientName = patient.fullName.replace(/\s/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-        const fileName = `prescription_${patientName}_${patient.tokenNumber}_${date}.pdf`;
-        const filePath = path.join(medicalSectionPath, fileName);
+        const publicId = `prescriptions/prescription_${patientName}_${patient.tokenNumber}_${date}`;
 
-        // Convert base64 to buffer and save
-        const base64Data = pdfData.replace(/^data:application\/pdf;base64,/, '');
-        const pdfBuffer = Buffer.from(base64Data, 'base64');
-        await fs.writeFile(filePath, pdfBuffer);
+        // If Cloudinary configured, upload there (works on Vercel/any stateless host)
+        if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+          cloudinary.config({
+            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+            api_key: process.env.CLOUDINARY_API_KEY,
+            api_secret: process.env.CLOUDINARY_API_SECRET
+          });
 
-        pdfPath = `/medical_records/${fileName}`;
+          const uploadResult = await new Promise((resolve, reject) => {
+            const upload = cloudinary.uploader.upload_stream(
+              {
+                public_id: publicId,
+                resource_type: 'raw', // pdf
+                overwrite: true
+              },
+              (error, result) => {
+                if (error) return reject(error);
+                resolve(result);
+              }
+            );
+            upload.end(pdfBuffer);
+          });
+
+          pdfPath = uploadResult.secure_url; // store absolute URL
+        } else {
+          // Fallback: save to local filesystem (works on persistent hosts)
+          await ensureMedicalDir();
+          const fileName = `${publicId.split('/').pop()}.pdf`;
+          const filePath = path.join(medicalSectionPath, fileName);
+          await fs.writeFile(filePath, pdfBuffer);
+          pdfPath = `/medical_records/${fileName}`;
+        }
       } catch (pdfError) {
-        console.error('Error saving PDF:', pdfError);
-        // Continue even if PDF save fails
+        console.error('Error saving/uploading PDF:', pdfError);
+        // Continue even if PDF save/upload fails
       }
     }
 
