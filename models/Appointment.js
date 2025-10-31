@@ -38,6 +38,30 @@ const appointmentSchema = new mongoose.Schema({
     enum: ['scheduled', 'confirmed', 'completed', 'cancelled'],
     default: 'scheduled'
   },
+  cancellationReason: {
+    type: String,
+    trim: true
+  },
+  cancelledAt: {
+    type: Date
+  },
+  cancelledBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  refundAmount: {
+    type: Number,
+    default: 0
+  },
+  refundStatus: {
+    type: String,
+    enum: ['not_applicable', 'pending', 'processed'],
+    default: 'not_applicable'
+  },
+  refundNotes: {
+    type: String,
+    trim: true
+  },
   smsSent: {
     type: Boolean,
     default: false

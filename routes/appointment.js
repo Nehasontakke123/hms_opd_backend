@@ -6,7 +6,8 @@ import {
   getAppointmentById,
   updateAppointment,
   deleteAppointment,
-  resendSMS
+  resendSMS,
+  cancelAppointment
 } from '../controllers/appointmentController.js';
 
 const router = express.Router();
@@ -19,6 +20,9 @@ router.post('/', authorize('admin', 'receptionist'), createAppointment);
 
 // Get all appointments (all authenticated users can view)
 router.get('/', getAllAppointments);
+
+// Cancel appointment (receptionist, admin)
+router.post('/:id/cancel', authorize('admin', 'receptionist'), cancelAppointment);
 
 // Resend SMS (receptionist, admin) - Must be before /:id to avoid route conflicts
 router.post('/:id/resend-sms', authorize('admin', 'receptionist'), resendSMS);

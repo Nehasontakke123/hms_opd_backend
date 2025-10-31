@@ -208,7 +208,7 @@ export const updateAppointment = async (req, res) => {
       });
     }
 
-    const { patientName, mobileNumber, email, appointmentDate, appointmentTime, doctor, reason, status, notes } = req.body;
+    const { patientName, mobileNumber, email, appointmentDate, appointmentTime, doctor, reason, status, notes, cancellationReason, refundAmount, refundStatus, refundNotes, cancelledAt } = req.body;
 
     // Update fields
     if (patientName) appointment.patientName = patientName;
@@ -220,6 +220,11 @@ export const updateAppointment = async (req, res) => {
     if (reason !== undefined) appointment.reason = reason;
     if (status) appointment.status = status;
     if (notes !== undefined) appointment.notes = notes;
+    if (cancellationReason !== undefined) appointment.cancellationReason = cancellationReason;
+    if (cancelledAt) appointment.cancelledAt = new Date(cancelledAt);
+    if (refundAmount !== undefined) appointment.refundAmount = Number(refundAmount) || 0;
+    if (refundStatus) appointment.refundStatus = refundStatus;
+    if (refundNotes !== undefined) appointment.refundNotes = refundNotes;
 
     await appointment.save();
     await appointment.populate('doctor', 'fullName specialization');
@@ -261,6 +266,97 @@ export const deleteAppointment = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Cancel appointment
+// @route   POST /api/appointment/:id/cancel
+// @access  Private/Admin/Receptionist
+export const cancelAppointment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { cancellationReason, refundAmount, refundStatus, refundNotes, notifyPatient } = req.body;
+
+    const appointment = await Appointment.findById(id).populate('doctor', 'fullName specialization');
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment not found'
+      });
+    }
+
+    if (appointment.status === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        message: 'Appointment is already cancelled'
+      });
+    }
+
+    if (appointment.status === 'completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Completed appointments cannot be cancelled'
+      });
+    }
+
+    appointment.status = 'cancelled';
+    appointment.cancellationReason = cancellationReason || 'Cancelled by hospital';
+    appointment.cancelledAt = new Date();
+    if (req.user?.id) {
+      appointment.cancelledBy = req.user.id;
+    }
+
+    const refundValue = refundAmount !== undefined && refundAmount !== null
+      ? Number(refundAmount)
+      : appointment.refundAmount || 0;
+
+    appointment.refundAmount = isNaN(refundValue) ? 0 : refundValue;
+    appointment.refundStatus = refundStatus || (appointment.refundAmount > 0 ? 'pending' : 'not_applicable');
+    if (refundNotes !== undefined) {
+      appointment.refundNotes = refundNotes;
+    }
+
+    await appointment.save();
+
+    let smsResult = null;
+    if (notifyPatient !== false) {
+      try {
+        const appointmentDateFormatted = new Date(appointment.appointmentDate).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+
+        let message = `Hello ${appointment.patientName}, your appointment with Dr. ${appointment.doctor?.fullName || ''} on ${appointmentDateFormatted} at ${appointment.appointmentTime} has been cancelled.`;
+        if (appointment.cancellationReason) {
+          message += ` Reason: ${appointment.cancellationReason}.`;
+        }
+        if (appointment.refundAmount > 0) {
+          message += ` Refund of ₹${appointment.refundAmount} is ${appointment.refundStatus === 'processed' ? 'completed' : 'in process'}.`;
+        }
+
+        smsResult = await sendSMS(appointment.mobileNumber, message);
+      } catch (smsError) {
+        console.error('Failed to send cancellation SMS:', smsError);
+      }
+    }
+
+    await appointment.populate('doctor', 'fullName specialization');
+
+    res.status(200).json({
+      success: true,
+      message: 'Appointment cancelled successfully',
+      data: appointment,
+      smsResult
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to cancel appointment',
       error: error.message
     });
   }
