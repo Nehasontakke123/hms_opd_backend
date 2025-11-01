@@ -7,7 +7,17 @@ import { sendSMS } from '../utils/sendSMS.js';
 // @access  Private/Receptionist/Admin
 export const createAppointment = async (req, res) => {
   try {
-    const { patientName, mobileNumber, email, appointmentDate, appointmentTime, doctor, reason, notes } = req.body;
+    const {
+      patientName,
+      mobileNumber,
+      email,
+      appointmentDate,
+      appointmentTime,
+      doctor,
+      reason,
+      notes,
+      skipSms
+    } = req.body;
 
     // Validation
     if (!patientName || !mobileNumber || !appointmentDate || !appointmentTime || !doctor) {
@@ -40,6 +50,16 @@ export const createAppointment = async (req, res) => {
     });
 
     await appointment.populate('doctor', 'fullName specialization');
+
+    if (skipSms === true) {
+      return res.status(201).json({
+        success: true,
+        message: 'Appointment scheduled successfully.',
+        data: appointment,
+        smsSent: false,
+        smsSkipped: true
+      });
+    }
 
     // Send SMS to patient
     try {

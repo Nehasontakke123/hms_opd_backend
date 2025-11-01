@@ -1,12 +1,23 @@
 import Patient from '../models/Patient.js';
 import User from '../models/User.js';
+import { sendWhatsAppMessage } from '../utils/sendWhatsApp.js';
 
 // @desc    Register new patient
 // @route   POST /api/patient/register
 // @access  Private/Receptionist
 export const registerPatient = async (req, res) => {
   try {
-    const { fullName, mobileNumber, address, age, disease, doctor, fees } = req.body;
+    const {
+      fullName,
+      mobileNumber,
+      address,
+      age,
+      disease,
+      doctor,
+      fees,
+      visitDate,
+      visitTime
+    } = req.body;
 
     // Validation
     if (!fullName || !mobileNumber || !address || !age || !disease || !doctor) {
@@ -16,11 +27,45 @@ export const registerPatient = async (req, res) => {
       });
     }
 
-    // Get today's date at midnight
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // Determine intended registration date/time
+    let registrationDate = new Date();
+
+    const parseVisitDate = () => {
+      if (!visitDate) return null;
+      const [year, month, day] = visitDate.split('-').map(Number);
+      if (
+        Number.isInteger(year) &&
+        Number.isInteger(month) &&
+        Number.isInteger(day)
+      ) {
+        return new Date(year, month - 1, day);
+      }
+      return null;
+    };
+
+    const parsedVisitDate = parseVisitDate();
+    if (parsedVisitDate) {
+      registrationDate = parsedVisitDate;
+    }
+
+    if (visitTime) {
+      const [hours, minutes] = visitTime.split(':').map(Number);
+      if (
+        Number.isInteger(hours) &&
+        Number.isInteger(minutes)
+      ) {
+        registrationDate.setHours(hours, minutes, 0, 0);
+      }
+    } else if (parsedVisitDate) {
+      // Default to 09:00 AM if only date provided
+      registrationDate.setHours(9, 0, 0, 0);
+    }
+
+    // Calculate day boundaries for limit and token generation
+    const dayStart = new Date(registrationDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
 
     // Check doctor's daily patient limit
     const doctorUser = await User.findById(doctor);
@@ -35,8 +80,8 @@ export const registerPatient = async (req, res) => {
     const todayPatientCount = await Patient.countDocuments({
       doctor: doctor,
       registrationDate: {
-        $gte: today,
-        $lt: tomorrow
+        $gte: dayStart,
+        $lt: dayEnd
       }
     });
 
@@ -53,9 +98,10 @@ export const registerPatient = async (req, res) => {
 
     // Get the last token number for today
     const lastPatient = await Patient.findOne({
+      doctor,
       registrationDate: {
-        $gte: today,
-        $lt: tomorrow
+        $gte: dayStart,
+        $lt: dayEnd
       }
     }).sort({ tokenNumber: -1 });
 
@@ -71,10 +117,36 @@ export const registerPatient = async (req, res) => {
       disease,
       doctor,
       fees: fees || 0,
-      tokenNumber
+      tokenNumber,
+      registrationDate
     });
 
     await patient.populate('doctor', 'fullName specialization');
+
+    const whatsappConfigured = Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_FROM);
+
+    if (whatsappConfigured) {
+      try {
+        const visitDateLabel = new Date(registrationDate).toLocaleString('en-IN', {
+          dateStyle: 'long',
+          timeStyle: 'short'
+        });
+
+        const specializationLabel = doctorUser.specialization ? ` (${doctorUser.specialization})` : '';
+
+        const whatsappMessage = `Hello ${fullName},\n\nYour registration at Tekisky Hospital is confirmed.\n\nToken Number: ${tokenNumber}\nDoctor: Dr. ${doctorUser.fullName}${specializationLabel}\nVisit: ${visitDateLabel}\n\nPlease arrive 10 minutes early and carry your ID proof.\n\nThank you,\nTekisky Hospital`;
+
+        const whatsappResult = await sendWhatsAppMessage(mobileNumber, whatsappMessage);
+
+        if (!whatsappResult.success) {
+          console.warn('[WhatsApp] Notification not sent:', whatsappResult.reason || 'unknown reason');
+        }
+      } catch (whatsAppError) {
+        console.error('[WhatsApp] Failed to send registration notification:', whatsAppError.message || whatsAppError);
+      }
+    } else {
+      console.warn('[WhatsApp] Skipping notification because TWILIO credentials are not fully configured.');
+    }
 
     res.status(201).json({
       success: true,
