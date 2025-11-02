@@ -22,7 +22,7 @@ const corsOptions = {
     'http://localhost:3000',
     'http://localhost:5173',
     'https://hms-opd-frontend.vercel.app',
-    
+    'https://hms-opd-frontend-dr9r.vercel.app',
   ],
   credentials: true
 };
