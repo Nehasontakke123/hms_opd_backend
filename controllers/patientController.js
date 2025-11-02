@@ -76,6 +76,18 @@ export const registerPatient = async (req, res) => {
       });
     }
 
+    // Check if doctor is available
+    if (!doctorUser.isAvailable) {
+      const reason = doctorUser.unavailableReason ? ` Reason: ${doctorUser.unavailableReason}` : '';
+      return res.status(400).json({
+        success: false,
+        message: `Doctor ${doctorUser.fullName} is currently not available. Please select another doctor.${reason}`,
+        doctorNotAvailable: true,
+        doctorName: doctorUser.fullName,
+        reason: doctorUser.unavailableReason
+      });
+    }
+
     // Count today's patients for this doctor
     const todayPatientCount = await Patient.countDocuments({
       doctor: doctor,

@@ -122,7 +122,69 @@ router.get('/:doctorId/stats', protect, async (req, res) => {
         dailyPatientLimit: doctor.dailyPatientLimit,
         todayPatientCount,
         remainingSlots: remainingSlots > 0 ? remainingSlots : 0,
-        isLimitReached
+        isLimitReached,
+        isAvailable: doctor.isAvailable !== undefined ? doctor.isAvailable : true,
+        unavailableReason: doctor.unavailableReason
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// Toggle doctor availability
+router.put('/:doctorId/availability', protect, async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { isAvailable, unavailableReason } = req.body;
+
+    // Check if user is doctor/receptionist/admin
+    if (!['admin', 'doctor', 'receptionist'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to update doctor availability'
+      });
+    }
+
+    // If doctor is marking themselves unavailable, check permissions
+    if (req.user.role === 'doctor' && req.user.id !== doctorId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only update your own availability'
+      });
+    }
+
+    // Find and update doctor
+    const doctor = await User.findById(doctorId);
+    
+    if (!doctor || doctor.role !== 'doctor') {
+      return res.status(404).json({
+        success: false,
+        message: 'Doctor not found'
+      });
+    }
+
+    doctor.isAvailable = isAvailable !== undefined ? isAvailable : !doctor.isAvailable;
+    if (unavailableReason !== undefined) {
+      doctor.unavailableReason = unavailableReason || '';
+    }
+
+    await doctor.save();
+
+    res.status(200).json({
+      success: true,
+      message: doctor.isAvailable 
+        ? 'Doctor marked as available' 
+        : 'Doctor marked as unavailable',
+      data: {
+        doctorId: doctor._id,
+        fullName: doctor.fullName,
+        isAvailable: doctor.isAvailable,
+        unavailableReason: doctor.unavailableReason
       }
     });
   } catch (error) {

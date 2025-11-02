@@ -39,6 +39,15 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  isAvailable: {
+    type: Boolean,
+    default: true
+  },
+  unavailableReason: {
+    type: String,
+    trim: true,
+    maxlength: 200
+  },
   dailyPatientLimit: {
     type: Number,
     default: 20,
