@@ -146,13 +146,25 @@ export const registerPatient = async (req, res) => {
 
         const specializationLabel = doctorUser.specialization ? ` (${doctorUser.specialization})` : '';
 
-        // Send WhatsApp to patient
+        // Send WhatsApp to patient using the mobile number from the registration form
+        console.log('[WhatsApp] Preparing to send patient notification...');
+        console.log('[WhatsApp] Patient mobile number from form:', mobileNumber);
+        
         const whatsappMessage = `Hello ${fullName},\n\nYour registration at Tekisky Hospital is confirmed.\n\nToken Number: ${tokenNumber}\nDoctor: Dr. ${doctorUser.fullName}${specializationLabel}\nVisit: ${visitDateLabel}\n\nPlease arrive 10 minutes early and carry your ID proof.\n\nThank you,\nTekisky Hospital`;
 
+        console.log('[WhatsApp] Sending confirmation message to patient mobile number:', mobileNumber);
         const whatsappResult = await sendWhatsAppMessage(mobileNumber, whatsappMessage);
 
         if (!whatsappResult.success) {
-          console.warn('[WhatsApp] Patient notification not sent:', whatsappResult.reason || 'unknown reason');
+          console.error('[WhatsApp] ❌ Patient notification FAILED');
+          console.error('[WhatsApp] Patient mobile number used:', mobileNumber);
+          console.error('[WhatsApp] Reason:', whatsappResult.reason || 'unknown reason');
+          console.error('[WhatsApp] Error details:', whatsappResult.error);
+        } else {
+          console.log('[WhatsApp] ✅ Patient notification sent successfully');
+          console.log('[WhatsApp] Message sent to:', mobileNumber);
+          console.log('[WhatsApp] Message SID:', whatsappResult.sid);
+          console.log('[WhatsApp] Status:', whatsappResult.status);
         }
 
         // Send WhatsApp notification to admin/owner about new patient registration
