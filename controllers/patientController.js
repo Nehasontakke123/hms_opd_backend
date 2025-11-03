@@ -135,7 +135,7 @@ export const registerPatient = async (req, res) => {
 
     await patient.populate('doctor', 'fullName specialization');
 
-    const whatsappConfigured = Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_FROM);
+    const whatsappConfigured = Boolean((process.env.TWILIO_WHATSAPP_ACCOUNT_SID || process.env.TWILIO_ACCOUNT_SID) && (process.env.TWILIO_WHATSAPP_AUTH_TOKEN || process.env.TWILIO_AUTH_TOKEN) && process.env.TWILIO_WHATSAPP_FROM);
 
     if (whatsappConfigured) {
       try {
@@ -146,12 +146,46 @@ export const registerPatient = async (req, res) => {
 
         const specializationLabel = doctorUser.specialization ? ` (${doctorUser.specialization})` : '';
 
+        // Send WhatsApp to patient
         const whatsappMessage = `Hello ${fullName},\n\nYour registration at Tekisky Hospital is confirmed.\n\nToken Number: ${tokenNumber}\nDoctor: Dr. ${doctorUser.fullName}${specializationLabel}\nVisit: ${visitDateLabel}\n\nPlease arrive 10 minutes early and carry your ID proof.\n\nThank you,\nTekisky Hospital`;
 
         const whatsappResult = await sendWhatsAppMessage(mobileNumber, whatsappMessage);
 
         if (!whatsappResult.success) {
-          console.warn('[WhatsApp] Notification not sent:', whatsappResult.reason || 'unknown reason');
+          console.warn('[WhatsApp] Patient notification not sent:', whatsappResult.reason || 'unknown reason');
+        }
+
+        // Send WhatsApp notification to admin/owner about new patient registration
+        const adminPhoneNumber = process.env.ADMIN_NOTIFICATION_PHONE || process.env.OWNER_PHONE;
+        console.log('[WhatsApp] Checking admin notification config...');
+        console.log('[WhatsApp] ADMIN_NOTIFICATION_PHONE:', process.env.ADMIN_NOTIFICATION_PHONE);
+        console.log('[WhatsApp] OWNER_PHONE:', process.env.OWNER_PHONE);
+        console.log('[WhatsApp] Resolved adminPhoneNumber:', adminPhoneNumber);
+        
+        if (adminPhoneNumber) {
+          try {
+            const adminMessage = `📋 New Patient Registration\n\nPatient: ${fullName}\nMobile: ${mobileNumber}\nAge: ${age} years\nDisease: ${disease}\n\nToken Number: ${tokenNumber}\nDoctor: Dr. ${doctorUser.fullName}${specializationLabel}\nVisit: ${visitDateLabel}\nAddress: ${address}\n\nTekisky Hospital OPD`;
+
+            console.log('[WhatsApp] Attempting to send admin notification to:', adminPhoneNumber);
+            const adminWhatsappResult = await sendWhatsAppMessage(adminPhoneNumber, adminMessage);
+
+            if (!adminWhatsappResult.success) {
+              console.error('[WhatsApp] ❌ Admin notification FAILED');
+              console.error('[WhatsApp] Reason:', adminWhatsappResult.reason);
+              console.error('[WhatsApp] Error details:', adminWhatsappResult.error);
+            } else {
+              console.log('[WhatsApp] ✅ Admin notification sent successfully');
+              console.log('[WhatsApp] Message SID:', adminWhatsappResult.sid);
+              console.log('[WhatsApp] Status:', adminWhatsappResult.status);
+            }
+          } catch (adminWhatsAppError) {
+            console.error('[WhatsApp] ❌ Exception while sending admin notification:');
+            console.error('[WhatsApp] Error:', adminWhatsAppError.message || adminWhatsAppError);
+            console.error('[WhatsApp] Stack:', adminWhatsAppError.stack);
+          }
+        } else {
+          console.warn('[WhatsApp] ⚠️ ADMIN_NOTIFICATION_PHONE or OWNER_PHONE not configured. Skipping admin notification.');
+          console.warn('[WhatsApp] To receive notifications, add ADMIN_NOTIFICATION_PHONE=+91xxxxxxxxxx to your .env file');
         }
       } catch (whatsAppError) {
         console.error('[WhatsApp] Failed to send registration notification:', whatsAppError.message || whatsAppError);

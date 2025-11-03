@@ -29,8 +29,8 @@ const formatMobileNumber = (mobileNumber) => {
 };
 
 export const sendWhatsAppMessage = async (mobileNumber, message) => {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const accountSid = process.env.TWILIO_WHATSAPP_ACCOUNT_SID || process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_WHATSAPP_AUTH_TOKEN || process.env.TWILIO_AUTH_TOKEN;
   const fromNumber = process.env.TWILIO_WHATSAPP_FROM;
 
   if (!accountSid || !authToken || !fromNumber) {
@@ -78,10 +78,23 @@ export const sendWhatsAppMessage = async (mobileNumber, message) => {
       status: response.data.status
     };
   } catch (error) {
-    console.error('[WhatsApp] Failed to send message:', error.response?.data || error.message);
-    return { success: false, reason: 'twilio-error', error };
+    const errorDetails = error.response?.data || error.message;
+    console.error('[WhatsApp] Failed to send message:', errorDetails);
+    
+    // Provide specific guidance for common errors
+    if (error.response?.data?.code === 21610) {
+      console.error('[WhatsApp] ERROR: WhatsApp is not enabled for your account. You need to join the WhatsApp sandbox first.');
+      console.error('[WhatsApp] SOLUTION: Send "join <sandbox-code>" to +1 415 523 8886 from your WhatsApp');
+    } else if (error.response?.data?.code === 21608) {
+      console.error('[WhatsApp] ERROR: Invalid recipient number or recipient not in WhatsApp sandbox');
+      console.error('[WhatsApp] SOLUTION: Ensure the recipient has joined the Twilio WhatsApp sandbox');
+    }
+    
+    return { success: false, reason: 'twilio-error', error: errorDetails };
   }
 };
+
+
 
 
 

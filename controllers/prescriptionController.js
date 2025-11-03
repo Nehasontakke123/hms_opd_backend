@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { v2 as cloudinary } from 'cloudinary';
+import { sendWhatsAppMessage } from '../utils/sendWhatsApp.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -106,6 +107,37 @@ export const createPrescription = async (req, res) => {
 
     await patient.save();
     await patient.populate('doctor', 'fullName specialization');
+
+    // Send WhatsApp notification about prescription
+    const whatsappConfigured = Boolean((process.env.TWILIO_WHATSAPP_ACCOUNT_SID || process.env.TWILIO_ACCOUNT_SID) && (process.env.TWILIO_WHATSAPP_AUTH_TOKEN || process.env.TWILIO_AUTH_TOKEN) && process.env.TWILIO_WHATSAPP_FROM);
+
+    if (whatsappConfigured) {
+      try {
+        const specializationLabel = patient.doctor.specialization ? ` (${patient.doctor.specialization})` : '';
+        
+        // Format medicines list
+        const medicinesList = medicines.map((med, index) => {
+          const times = [];
+          if (med.times?.morning) times.push('Morning');
+          if (med.times?.afternoon) times.push('Afternoon');
+          if (med.times?.night) times.push('Night');
+          const timeLabel = times.length > 0 ? ` - ${times.join(', ')}` : '';
+          return `${index + 1}. ${med.name} - ${med.dosage}${timeLabel} (${med.duration})`;
+        }).join('\n');
+
+        const whatsappMessage = `Hello ${patient.fullName},\n\nYour prescription from Dr. ${patient.doctor.fullName}${specializationLabel} is ready.\n\n📋 Diagnosis: ${diagnosis}\n\n💊 Prescribed Medicines:\n${medicinesList}\n\n${notes ? `📝 Notes: ${notes}\n\n` : ''}Your prescription has been saved. Please collect your medicines and follow the instructions carefully.\n\nThank you,\nTekisky Hospital`;
+
+        const whatsappResult = await sendWhatsAppMessage(patient.mobileNumber, whatsappMessage);
+
+        if (!whatsappResult.success) {
+          console.warn('[WhatsApp] Prescription notification not sent:', whatsappResult.reason || 'unknown reason');
+        }
+      } catch (whatsAppError) {
+        console.error('[WhatsApp] Failed to send prescription notification:', whatsAppError.message || whatsAppError);
+      }
+    } else {
+      console.warn('[WhatsApp] Skipping prescription notification because TWILIO credentials are not fully configured.');
+    }
 
     res.status(200).json({
       success: true,
