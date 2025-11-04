@@ -185,3 +185,4 @@ After fixing, when you register a patient:
 **Total Fix Time**: 3-5 minutes
 
 
+

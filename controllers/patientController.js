@@ -16,7 +16,9 @@ export const registerPatient = async (req, res) => {
       doctor,
       fees,
       visitDate,
-      visitTime
+      visitTime,
+      isRecheck,
+      feeStatus
     } = req.body;
 
     // Validation
@@ -129,6 +131,8 @@ export const registerPatient = async (req, res) => {
       disease,
       doctor,
       fees: fees || 0,
+      feeStatus: feeStatus || 'pending',
+      isRecheck: isRecheck || false,
       tokenNumber,
       registrationDate
     });
@@ -271,6 +275,112 @@ export const getAllPatients = async (req, res) => {
       success: true,
       count: patients.length,
       data: patients
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Update patient payment status
+// @route   PUT /api/patient/:patientId/payment
+// @access  Private/Doctor
+export const updatePatientPayment = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { paymentAmount } = req.body;
+
+    const patient = await Patient.findById(patientId);
+
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    if (patient.isRecheck) {
+      return res.status(400).json({
+        success: false,
+        message: 'Recheck-up patients do not require payment'
+      });
+    }
+
+    if (patient.feeStatus === 'paid') {
+      return res.status(400).json({
+        success: false,
+        message: 'Patient payment is already marked as paid'
+      });
+    }
+
+    // Update payment status
+    patient.feeStatus = 'paid';
+    patient.paymentDate = new Date();
+    if (paymentAmount) {
+      patient.paymentAmount = Number(paymentAmount);
+    } else {
+      // Use the consultation fee if payment amount not provided
+      patient.paymentAmount = patient.fees || 0;
+    }
+
+    await patient.save();
+
+    await patient.populate('doctor', 'fullName specialization qualification');
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment status updated successfully',
+      data: patient
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Cancel a patient
+// @route   PUT /api/patient/:patientId/cancel
+// @access  Private
+export const cancelPatient = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { cancellationReason } = req.body;
+
+    const patient = await Patient.findById(patientId);
+
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    if (patient.isCancelled) {
+      return res.status(400).json({
+        success: false,
+        message: 'Patient is already cancelled'
+      });
+    }
+
+    patient.isCancelled = true;
+    patient.status = 'cancelled';
+    patient.cancelledAt = new Date();
+    if (cancellationReason) {
+      patient.cancellationReason = cancellationReason;
+    }
+
+    await patient.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Patient cancelled successfully',
+      data: patient
     });
   } catch (error) {
     res.status(500).json({

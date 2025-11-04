@@ -21,7 +21,6 @@ const corsOptions = {
   origin: process.env.FRONTEND_URL || [
     'http://localhost:3000',
     'http://localhost:5173',
-    'https://hms-opd-frontend.vercel.app',
     'https://hms-opd-frontend-dr9r.vercel.app',
     'https://hms-opd-frontend-ll9f.vercel.app',
   ],

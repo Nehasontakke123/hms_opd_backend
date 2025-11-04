@@ -36,6 +36,32 @@ const patientSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  feeStatus: {
+    type: String,
+    enum: ['paid', 'pending'],
+    default: 'pending'
+  },
+  paymentDate: {
+    type: Date
+  },
+  paymentAmount: {
+    type: Number
+  },
+  isRecheck: {
+    type: Boolean,
+    default: false
+  },
+  isCancelled: {
+    type: Boolean,
+    default: false
+  },
+  cancelledAt: {
+    type: Date
+  },
+  cancellationReason: {
+    type: String,
+    trim: true
+  },
   tokenNumber: {
     type: Number,
     required: true
@@ -46,7 +72,7 @@ const patientSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['waiting', 'in-progress', 'completed'],
+    enum: ['waiting', 'in-progress', 'completed', 'cancelled'],
     default: 'waiting'
   },
   prescription: {
