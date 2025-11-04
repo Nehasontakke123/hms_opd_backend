@@ -106,7 +106,7 @@ export const createPrescription = async (req, res) => {
     patient.status = 'completed';
 
     await patient.save();
-    await patient.populate('doctor', 'fullName specialization');
+    await patient.populate('doctor', 'fullName specialization qualification');
 
     // Send WhatsApp notification about prescription
     const whatsappConfigured = Boolean((process.env.TWILIO_WHATSAPP_ACCOUNT_SID || process.env.TWILIO_ACCOUNT_SID) && (process.env.TWILIO_WHATSAPP_AUTH_TOKEN || process.env.TWILIO_AUTH_TOKEN) && process.env.TWILIO_WHATSAPP_FROM);
@@ -159,7 +159,7 @@ export const createPrescription = async (req, res) => {
 export const getPatientById = async (req, res) => {
   try {
     const patient = await Patient.findById(req.params.patientId)
-      .populate('doctor', 'fullName specialization email');
+      .populate('doctor', 'fullName specialization qualification email');
 
     if (!patient) {
       return res.status(404).json({

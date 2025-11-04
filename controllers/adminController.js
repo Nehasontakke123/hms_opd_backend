@@ -28,7 +28,7 @@ export const getAllUsers = async (req, res) => {
 // @access  Private/Admin
 export const createUser = async (req, res) => {
   try {
-    const { fullName, email, password, role, specialization, fees, mobileNumber } = req.body;
+    const { fullName, email, password, role, specialization, qualification, fees, mobileNumber } = req.body;
 
     // Validation
     if (!fullName || !email || !password || !role) {
@@ -54,6 +54,7 @@ export const createUser = async (req, res) => {
       password,
       role,
       specialization,
+      qualification,
       fees: fees ? Number(fees) : undefined,
       mobileNumber
     });
@@ -66,6 +67,7 @@ export const createUser = async (req, res) => {
         email: user.email,
         role: user.role,
         specialization: user.specialization,
+        qualification: user.qualification,
         fees: user.fees,
         mobileNumber: user.mobileNumber
       }
@@ -84,7 +86,7 @@ export const createUser = async (req, res) => {
 // @access  Private/Admin
 export const updateUser = async (req, res) => {
   try {
-    const { fullName, email, role, specialization, fees, mobileNumber, isActive } = req.body;
+    const { fullName, email, role, specialization, qualification, fees, mobileNumber, isActive } = req.body;
 
     const user = await User.findById(req.params.id);
 
@@ -99,7 +101,8 @@ export const updateUser = async (req, res) => {
     if (fullName) user.fullName = fullName;
     if (email) user.email = email;
     if (role) user.role = role;
-    if (specialization) user.specialization = specialization;
+    if (specialization !== undefined) user.specialization = specialization;
+    if (qualification !== undefined) user.qualification = qualification;
     if (fees !== undefined) user.fees = fees ? Number(fees) : undefined;
     if (mobileNumber) user.mobileNumber = mobileNumber;
     if (isActive !== undefined) user.isActive = isActive;

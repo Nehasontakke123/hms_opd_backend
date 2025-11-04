@@ -28,6 +28,10 @@ const userSchema = new mongoose.Schema({
   specialization: {
     type: String
   },
+  qualification: {
+    type: String,
+    trim: true
+  },
   fees: {
     type: Number,
     min: 0

@@ -124,8 +124,21 @@ export const sendWhatsAppMessage = async (mobileNumber, message) => {
       console.error('[WhatsApp] ❌ ERROR 21211: Invalid recipient number format');
       console.error('[WhatsApp] 💡 SOLUTION: Ensure phone number is in E.164 format (e.g., +919876543210)');
     } else if (errorCode === 20003 || errorCode === 20001) {
-      console.error('[WhatsApp] ❌ ERROR: Authentication failed');
+      console.error('[WhatsApp] ❌ ERROR: Authentication failed (Error Code: ' + errorCode + ')');
       console.error('[WhatsApp] 💡 SOLUTION: Check your Account SID and Auth Token in .env file');
+      console.error('[WhatsApp] 📋 DIAGNOSIS:');
+      console.error('[WhatsApp]    Account SID:', accountSid ? `${accountSid.substring(0, 10)}...` : '❌ MISSING');
+      console.error('[WhatsApp]    Auth Token:', authToken ? `${authToken.substring(0, 10)}...` : '❌ MISSING');
+      console.error('[WhatsApp]    From Number:', fromNumber || '❌ MISSING');
+      console.error('[WhatsApp] 📝 STEPS TO FIX:');
+      console.error('[WhatsApp]    1. Go to: https://console.twilio.com/us1/account/keys-credentials/api-keys');
+      console.error('[WhatsApp]    2. Verify your Account SID (starts with "AC")');
+      console.error('[WhatsApp]    3. Create or verify your Auth Token');
+      console.error('[WhatsApp]    4. Update your .env file with correct credentials:');
+      console.error('[WhatsApp]       TWILIO_WHATSAPP_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+      console.error('[WhatsApp]       TWILIO_WHATSAPP_AUTH_TOKEN=your_auth_token_here');
+      console.error('[WhatsApp]       TWILIO_WHATSAPP_FROM=whatsapp:+14155238886');
+      console.error('[WhatsApp]    5. Restart your server after updating .env');
     } else if (errorMessage && errorMessage.includes('not a Twilio phone number')) {
       console.error('[WhatsApp] ❌ ERROR: Invalid "From" number');
       console.error('[WhatsApp] 💡 SOLUTION: Check TWILIO_WHATSAPP_FROM in .env file');

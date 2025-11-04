@@ -133,7 +133,7 @@ export const registerPatient = async (req, res) => {
       registrationDate
     });
 
-    await patient.populate('doctor', 'fullName specialization');
+    await patient.populate('doctor', 'fullName specialization qualification');
 
     const whatsappConfigured = Boolean((process.env.TWILIO_WHATSAPP_ACCOUNT_SID || process.env.TWILIO_ACCOUNT_SID) && (process.env.TWILIO_WHATSAPP_AUTH_TOKEN || process.env.TWILIO_AUTH_TOKEN) && process.env.TWILIO_WHATSAPP_FROM);
 
@@ -241,7 +241,7 @@ export const getTodayPatients = async (req, res) => {
         $lt: tomorrow
       }
     })
-    .populate('doctor', 'fullName specialization')
+      .populate('doctor', 'fullName specialization qualification')
     .sort({ tokenNumber: 1 });
 
     res.status(200).json({
@@ -264,7 +264,7 @@ export const getTodayPatients = async (req, res) => {
 export const getAllPatients = async (req, res) => {
   try {
     const patients = await Patient.find()
-      .populate('doctor', 'fullName specialization fees')
+      .populate('doctor', 'fullName specialization qualification fees')
       .sort({ createdAt: -1 });
 
     res.status(200).json({
