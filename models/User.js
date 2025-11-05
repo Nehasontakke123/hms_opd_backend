@@ -61,6 +61,27 @@ const userSchema = new mongoose.Schema({
   lastLimitResetDate: {
     type: Date,
     default: Date.now
+  },
+  visitingHours: {
+    morning: {
+      enabled: { type: Boolean, default: false },
+      start: { type: String, default: '09:00' },
+      end: { type: String, default: '12:00' }
+    },
+    afternoon: {
+      enabled: { type: Boolean, default: false },
+      start: { type: String, default: '13:00' },
+      end: { type: String, default: '16:00' }
+    },
+    evening: {
+      enabled: { type: Boolean, default: false },
+      start: { type: String, default: '18:00' },
+      end: { type: String, default: '21:00' }
+    }
+  },
+  profileImage: {
+    type: String,
+    default: null
   }
 }, {
   timestamps: true

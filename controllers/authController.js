@@ -55,7 +55,11 @@ export const login = async (req, res) => {
         fullName: user.fullName,
         email: user.email,
         role: user.role,
-        specialization: user.specialization
+        specialization: user.specialization,
+        qualification: user.qualification,
+        profileImage: user.profileImage,
+        fees: user.fees,
+        mobileNumber: user.mobileNumber
       }
     });
   } catch (error) {
@@ -97,5 +101,45 @@ export const seedMedical = async (req, res) => {
     return res.status(201).json({ success: true, message: 'Medical user created', email });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Get current user
+// @route   GET /api/auth/me
+// @access  Private
+export const getMe = async (req, res) => {
+  try {
+    // req.user is set by protect middleware
+    const user = await User.findById(req.user._id).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        specialization: user.specialization,
+        qualification: user.qualification,
+        profileImage: user.profileImage,
+        fees: user.fees,
+        mobileNumber: user.mobileNumber,
+        isAvailable: user.isAvailable,
+        dailyPatientLimit: user.dailyPatientLimit
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
   }
 };
