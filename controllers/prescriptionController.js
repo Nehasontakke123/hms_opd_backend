@@ -180,3 +180,95 @@ export const getPatientById = async (req, res) => {
     });
   }
 };
+
+// @desc    Get patient medical history by name, mobile number, or patient ID
+// @route   GET /api/prescription/medical-history
+// @access  Private
+export const getMedicalHistory = async (req, res) => {
+  try {
+    const { patientId, mobileNumber, fullName } = req.query;
+
+    // Build query based on provided parameters
+    let query = {};
+    
+    if (patientId) {
+      // Search by patient ID
+      query._id = patientId;
+    } else if (mobileNumber) {
+      // Search by mobile number (case-insensitive, partial match)
+      query.mobileNumber = { $regex: mobileNumber.trim(), $options: 'i' };
+    } else if (fullName) {
+      // Search by full name (case-insensitive, partial match)
+      query.fullName = { $regex: fullName.trim(), $options: 'i' };
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide patientId, mobileNumber, or fullName'
+      });
+    }
+
+    // Find all patient records matching the query
+    // Populate doctor information and sort by registration date (newest first)
+    const patients = await Patient.find(query)
+      .populate('doctor', 'fullName specialization qualification email')
+      .sort({ registrationDate: -1 })
+      .select('-__v');
+
+    if (!patients || patients.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No medical history found for this patient'
+      });
+    }
+
+    // Format medical history records
+    const medicalHistory = patients.map(patient => ({
+      patientId: patient._id,
+      visitDate: patient.registrationDate,
+      tokenNumber: patient.tokenNumber,
+      patientInfo: {
+        fullName: patient.fullName,
+        mobileNumber: patient.mobileNumber,
+        address: patient.address,
+        age: patient.age,
+        disease: patient.disease
+      },
+      doctor: patient.doctor ? {
+        name: patient.doctor.fullName,
+        specialization: patient.doctor.specialization,
+        qualification: patient.doctor.qualification
+      } : null,
+      prescription: patient.prescription ? {
+        diagnosis: patient.prescription.diagnosis,
+        medicines: patient.prescription.medicines || [],
+        notes: patient.prescription.notes || '',
+        pdfPath: patient.prescription.pdfPath || null,
+        createdAt: patient.prescription.createdAt || patient.registrationDate
+      } : null,
+      visitDetails: {
+        fees: patient.fees,
+        feeStatus: patient.feeStatus,
+        isRecheck: patient.isRecheck,
+        status: patient.status
+      }
+    }));
+
+    // Get unique patient info from the first record (most recent)
+    const patientInfo = medicalHistory.length > 0 ? medicalHistory[0].patientInfo : null;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        patientInfo,
+        medicalHistory,
+        totalVisits: medicalHistory.length
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
