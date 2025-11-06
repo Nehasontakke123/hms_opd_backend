@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { v2 as cloudinary } from 'cloudinary';
 import { sendWhatsAppMessage } from '../utils/sendWhatsApp.js';
+import { deductPrescriptionStock } from './inventoryController.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -107,6 +108,14 @@ export const createPrescription = async (req, res) => {
 
     await patient.save();
     await patient.populate('doctor', 'fullName specialization qualification');
+
+    // Update inventory - deduct stock for prescribed medicines
+    try {
+      await deductPrescriptionStock(medicines, patient._id, req.user._id);
+    } catch (inventoryError) {
+      console.error('Error updating inventory:', inventoryError);
+      // Don't fail the prescription if inventory update fails
+    }
 
     // Send WhatsApp notification about prescription
     const whatsappConfigured = Boolean((process.env.TWILIO_WHATSAPP_ACCOUNT_SID || process.env.TWILIO_ACCOUNT_SID) && (process.env.TWILIO_WHATSAPP_AUTH_TOKEN || process.env.TWILIO_AUTH_TOKEN) && process.env.TWILIO_WHATSAPP_FROM);

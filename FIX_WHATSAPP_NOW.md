@@ -188,3 +188,5 @@ After fixing, when you register a patient:
 
 
 
+
+

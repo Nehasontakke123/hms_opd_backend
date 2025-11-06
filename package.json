@@ -10,7 +10,8 @@
     "seed:admin": "node scripts/createAdmin.js",
     "reset:admin": "node scripts/resetAdmin.js",
     "seed:medical": "node scripts/createMedical.js",
-    "fix:availability": "node scripts/fixDoctorAvailability.js"
+    "fix:availability": "node scripts/fixDoctorAvailability.js",
+    "import:medicines": "node scripts/importMedicines.js"
   },
   "dependencies": {
     "axios": "^1.6.2",
@@ -22,7 +23,8 @@
     "express-validator": "^7.0.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.19.2",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

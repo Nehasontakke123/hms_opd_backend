@@ -9,6 +9,9 @@ import doctorRoutes from './routes/doctor.js';
 import patientRoutes from './routes/patient.js';
 import prescriptionRoutes from './routes/prescription.js';
 import appointmentRoutes from './routes/appointment.js';
+import medicalRecordsRoutes from './routes/medicalRecords.js';
+import inventoryRoutes from './routes/inventory.js';
+import importExportRoutes from './routes/importExport.js';
 
 // Load environment variables
 dotenv.config();
@@ -42,6 +45,9 @@ app.use('/api/doctor', doctorRoutes);
 app.use('/api/patient', patientRoutes);
 app.use('/api/prescription', prescriptionRoutes);
 app.use('/api/appointment', appointmentRoutes);
+app.use('/api/medical-records', medicalRecordsRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/admin/import-export', importExportRoutes);
 
 // Serve medical records (prescription PDFs)
 app.use('/medical_records', express.static('medical_records'));
