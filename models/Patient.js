@@ -38,7 +38,7 @@ const patientSchema = new mongoose.Schema({
   },
   feeStatus: {
     type: String,
-    enum: ['paid', 'pending'],
+    enum: ['paid', 'pending', 'not_required'],
     default: 'pending'
   },
   paymentDate: {

@@ -19,7 +19,9 @@ export const registerPatient = async (req, res) => {
       visitTime,
       isRecheck,
       feeStatus,
-      behaviorRating
+      behaviorRating,
+      paymentDate,
+      paymentAmount
     } = req.body;
 
     // Validation
@@ -124,20 +126,41 @@ export const registerPatient = async (req, res) => {
     const tokenNumber = lastPatient ? lastPatient.tokenNumber + 1 : 1;
 
     // Create patient
-    const patient = await Patient.create({
+    // For recheck-up visits, fees are always 0 and status is 'not_required'
+    const finalFees = isRecheck ? 0 : (fees || 0)
+    const finalFeeStatus = isRecheck ? 'not_required' : (feeStatus || 'pending')
+    
+    // Set payment date and amount if payment is completed
+    const patientData = {
       fullName,
       mobileNumber,
       address,
       age,
       disease,
       doctor,
-      fees: fees || 0,
-      feeStatus: feeStatus || 'pending',
+      fees: finalFees,
+      feeStatus: finalFeeStatus,
       isRecheck: isRecheck || false,
       tokenNumber,
       registrationDate,
       behaviorRating: behaviorRating || null
-    });
+    };
+
+    // Add payment details if payment is completed
+    if (finalFeeStatus === 'paid') {
+      if (paymentDate) {
+        patientData.paymentDate = new Date(paymentDate);
+      } else {
+        patientData.paymentDate = new Date();
+      }
+      if (paymentAmount) {
+        patientData.paymentAmount = Number(paymentAmount);
+      } else {
+        patientData.paymentAmount = finalFees;
+      }
+    }
+    
+    const patient = await Patient.create(patientData);
 
     await patient.populate('doctor', 'fullName specialization qualification');
 

@@ -12,6 +12,7 @@ import appointmentRoutes from './routes/appointment.js';
 import medicalRecordsRoutes from './routes/medicalRecords.js';
 import inventoryRoutes from './routes/inventory.js';
 import importExportRoutes from './routes/importExport.js';
+import paymentRoutes from './routes/payment.js';
 
 // Load environment variables
 dotenv.config();
@@ -48,6 +49,7 @@ app.use('/api/appointment', appointmentRoutes);
 app.use('/api/medical-records', medicalRecordsRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/admin/import-export', importExportRoutes);
+app.use('/api/payment', paymentRoutes);
 
 // Serve medical records (prescription PDFs) with correct content-type
 app.use('/medical_records', express.static('medical_records', {
