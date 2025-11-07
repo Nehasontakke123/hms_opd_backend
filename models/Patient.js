@@ -85,6 +85,12 @@ const patientSchema = new mongoose.Schema({
     notes: String,
     createdAt: Date,
     pdfPath: String // Path to PDF file in medical section
+  },
+  behaviorRating: {
+    type: Number,
+    min: 1,
+    max: 5,
+    default: null
   }
 }, {
   timestamps: true

@@ -18,7 +18,8 @@ export const registerPatient = async (req, res) => {
       visitDate,
       visitTime,
       isRecheck,
-      feeStatus
+      feeStatus,
+      behaviorRating
     } = req.body;
 
     // Validation
@@ -134,7 +135,8 @@ export const registerPatient = async (req, res) => {
       feeStatus: feeStatus || 'pending',
       isRecheck: isRecheck || false,
       tokenNumber,
-      registrationDate
+      registrationDate,
+      behaviorRating: behaviorRating || null
     });
 
     await patient.populate('doctor', 'fullName specialization qualification');

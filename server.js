@@ -49,8 +49,14 @@ app.use('/api/medical-records', medicalRecordsRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/admin/import-export', importExportRoutes);
 
-// Serve medical records (prescription PDFs)
-app.use('/medical_records', express.static('medical_records'));
+// Serve medical records (prescription PDFs) with correct content-type
+app.use('/medical_records', express.static('medical_records', {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.pdf')) {
+      res.setHeader('Content-Type', 'application/pdf');
+    }
+  }
+}));
 
 
 
