@@ -21,14 +21,32 @@ export const registerPatient = async (req, res) => {
       feeStatus,
       behaviorRating,
       paymentDate,
-      paymentAmount
+      paymentAmount,
+      bloodPressure,
+      sugarLevel
     } = req.body;
 
     // Validation
-    if (!fullName || !mobileNumber || !address || !age || !disease || !doctor) {
+    if (!fullName || !mobileNumber || !address || !age || !disease || !doctor || !bloodPressure || sugarLevel === undefined || sugarLevel === null) {
       return res.status(400).json({
         success: false,
         message: 'Please provide all required fields'
+      });
+    }
+
+    const bpPattern = /^\d{2,3}(\/\d{2,3})?$/;
+    if (!bpPattern.test(String(bloodPressure).trim())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid blood pressure reading (e.g. 120/80)'
+      });
+    }
+
+    const numericSugar = Number(sugarLevel);
+    if (!Number.isFinite(numericSugar) || numericSugar <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid sugar level in mg/dL'
       });
     }
 
@@ -143,7 +161,9 @@ export const registerPatient = async (req, res) => {
       isRecheck: isRecheck || false,
       tokenNumber,
       registrationDate,
-      behaviorRating: behaviorRating || null
+      behaviorRating: behaviorRating || null,
+      bloodPressure: String(bloodPressure).trim(),
+      sugarLevel: numericSugar
     };
 
     // Add payment details if payment is completed

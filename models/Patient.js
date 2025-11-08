@@ -51,6 +51,16 @@ const patientSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  bloodPressure: {
+    type: String,
+    required: [true, 'Please provide blood pressure reading'],
+    trim: true
+  },
+  sugarLevel: {
+    type: Number,
+    required: [true, 'Please provide sugar level'],
+    min: [1, 'Sugar level must be greater than 0']
+  },
   isCancelled: {
     type: Boolean,
     default: false
