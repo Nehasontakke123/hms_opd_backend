@@ -25,7 +25,12 @@ const ensureMedicalDir = async () => {
 // @access  Private/Doctor
 export const createPrescription = async (req, res) => {
   try {
-    const { diagnosis, medicines, notes, pdfData } = req.body;
+    const { diagnosis, medicines, notes, pdfData, inventoryItems } = req.body;
+
+    const normalizeField = (value) => {
+      if (value === undefined || value === null) return '';
+      return String(value);
+    };
 
     // Validation
     if (!diagnosis || !medicines || medicines.length === 0) {
@@ -100,6 +105,14 @@ export const createPrescription = async (req, res) => {
       diagnosis,
       medicines,
       notes: notes || '',
+      inventoryItems: Array.isArray(inventoryItems)
+        ? inventoryItems.map(item => ({
+            name: normalizeField(item.name),
+            code: normalizeField(item.code),
+            usage: normalizeField(item.usage),
+            dosage: normalizeField(item.dosage)
+          }))
+        : [],
       createdAt: new Date(),
       pdfPath: pdfPath || patient.prescription?.pdfPath || null
     };

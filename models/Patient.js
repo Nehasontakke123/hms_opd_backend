@@ -92,6 +92,12 @@ const patientSchema = new mongoose.Schema({
       dosage: String,
       duration: String
     }],
+    inventoryItems: [{
+      name: String,
+      code: String,
+      usage: String,
+      dosage: String
+    }],
     notes: String,
     createdAt: Date,
     pdfPath: String // Path to PDF file in medical section
