@@ -44,6 +44,38 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
+// Get patient's history for a doctor
+router.get('/:doctorId/patients/history', protect, async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+
+    const doctor = await User.findById(doctorId);
+
+    if (!doctor || doctor.role !== 'doctor') {
+      return res.status(404).json({
+        success: false,
+        message: 'Doctor not found'
+      });
+    }
+
+    const patients = await Patient.find({ doctor: doctorId })
+      .populate('doctor', 'fullName specialization qualification')
+      .sort({ registrationDate: -1, createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: patients.length,
+      data: patients
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
 // Set or update daily patient limit
 router.put('/:doctorId/patient-limit', protect, async (req, res) => {
   try {
