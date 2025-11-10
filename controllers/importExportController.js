@@ -1,6 +1,69 @@
 import Medicine from '../models/Medicine.js';
 import XLSX from 'xlsx';
 
+// Helper function to process an array of medicines and import them
+const processMedicinesImport = async (medicines, overwrite = false) => {
+  if (!medicines || !Array.isArray(medicines)) {
+    throw new Error('Invalid data format. Expected an array of medicines.');
+  }
+
+  const results = {
+    imported: 0,
+    updated: 0,
+    skipped: 0,
+    errors: []
+  };
+
+  for (const medData of medicines) {
+    try {
+      // Map Indian Medicine Dataset format to our schema
+      const medicineData = {
+        name: medData.name || medData.medicine_name || medData.drug_name,
+        genericName: medData.generic_name || medData.generic || '',
+        brandName: medData.brand_name || medData.brand || '',
+        manufacturer: medData.manufacturer || medData.company || '',
+        form: mapForm(medData.form || medData.type || medData.dosage_form || 'Tablet'),
+        strength: medData.strength || medData.dosage || '',
+        category: medData.category || medData.therapeutic_class || '',
+        description: medData.description || medData.uses || '',
+        price: parseFloat(medData.price || medData.cost || 0),
+        stockQuantity: parseInt(medData.stock || medData.quantity || 0),
+        minStockLevel: parseInt(medData.min_stock || 10),
+        source: 'imported',
+        importedData: medData
+      };
+
+      if (!medicineData.name) {
+        results.skipped++;
+        results.errors.push({ medicine: medData, error: 'Missing medicine name' });
+        continue;
+      }
+
+      const existingMedicine = await Medicine.findOne({
+        name: { $regex: new RegExp(`^${medicineData.name}$`, 'i') }
+      });
+
+      if (existingMedicine) {
+        if (overwrite) {
+          Object.assign(existingMedicine, medicineData);
+          await existingMedicine.save();
+          results.updated++;
+        } else {
+          results.skipped++;
+        }
+      } else {
+        await Medicine.create(medicineData);
+        results.imported++;
+      }
+    } catch (error) {
+      results.errors.push({ medicine: medData, error: error.message });
+      results.skipped++;
+    }
+  }
+
+  return results;
+};
+
 // @desc    Import medicines from JSON (Indian Medicine Dataset format)
 // @route   POST /api/admin/import-export/import/json
 // @access  Private/Admin
@@ -8,67 +71,7 @@ export const importMedicinesFromJSON = async (req, res) => {
   try {
     const { medicines, overwrite = false } = req.body;
 
-    if (!medicines || !Array.isArray(medicines)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid data format. Expected an array of medicines.'
-      });
-    }
-
-    const results = {
-      imported: 0,
-      updated: 0,
-      skipped: 0,
-      errors: []
-    };
-
-    for (const medData of medicines) {
-      try {
-        // Map Indian Medicine Dataset format to our schema
-        const medicineData = {
-          name: medData.name || medData.medicine_name || medData.drug_name,
-          genericName: medData.generic_name || medData.generic || '',
-          brandName: medData.brand_name || medData.brand || '',
-          manufacturer: medData.manufacturer || medData.company || '',
-          form: mapForm(medData.form || medData.type || medData.dosage_form || 'Tablet'),
-          strength: medData.strength || medData.dosage || '',
-          category: medData.category || medData.therapeutic_class || '',
-          description: medData.description || medData.uses || '',
-          price: parseFloat(medData.price || medData.cost || 0),
-          stockQuantity: parseInt(medData.stock || medData.quantity || 0),
-          minStockLevel: parseInt(medData.min_stock || 10),
-          source: 'imported',
-          importedData: medData
-        };
-
-        if (!medicineData.name) {
-          results.skipped++;
-          results.errors.push({ medicine: medData, error: 'Missing medicine name' });
-          continue;
-        }
-
-        // Check if medicine already exists
-        const existingMedicine = await Medicine.findOne({
-          name: { $regex: new RegExp(`^${medicineData.name}$`, 'i') }
-        });
-
-        if (existingMedicine) {
-          if (overwrite) {
-            Object.assign(existingMedicine, medicineData);
-            await existingMedicine.save();
-            results.updated++;
-          } else {
-            results.skipped++;
-          }
-        } else {
-          await Medicine.create(medicineData);
-          results.imported++;
-        }
-      } catch (error) {
-        results.errors.push({ medicine: medData, error: error.message });
-        results.skipped++;
-      }
-    }
+    const results = await processMedicinesImport(medicines, overwrite);
 
     res.status(200).json({
       success: true,
@@ -305,26 +308,27 @@ export const syncMedicineData = async (req, res) => {
     const data = await response.json();
     
     // Process the data (assuming it's in Indian Medicine Dataset format)
+    let medicinesArray = null;
     if (Array.isArray(data)) {
-      const result = await importMedicinesFromJSON({ medicines: data, overwrite: false });
-      return res.status(200).json({
-        success: true,
-        message: 'Data synchronized successfully',
-        result
-      });
-    } else if (data.data && Array.isArray(data.data)) {
-      const result = await importMedicinesFromJSON({ medicines: data.data, overwrite: false });
-      return res.status(200).json({
-        success: true,
-        message: 'Data synchronized successfully',
-        result
-      });
-    } else {
+      medicinesArray = data;
+    } else if (data?.data && Array.isArray(data.data)) {
+      medicinesArray = data.data;
+    }
+
+    if (!medicinesArray) {
       return res.status(400).json({
         success: false,
         message: 'Invalid data format'
       });
     }
+
+    const results = await processMedicinesImport(medicinesArray, false);
+
+    return res.status(200).json({
+      success: true,
+      message: `Data synchronized successfully: ${results.imported} imported, ${results.updated} updated, ${results.skipped} skipped`,
+      results
+    });
   } catch (error) {
     res.status(500).json({
       success: false,

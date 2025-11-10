@@ -255,18 +255,28 @@ export const getMedicalHistory = async (req, res) => {
         age: patient.age,
         disease: patient.disease
       },
-      doctor: patient.doctor ? {
-        name: patient.doctor.fullName,
-        specialization: patient.doctor.specialization,
-        qualification: patient.doctor.qualification
-      } : null,
-      prescription: patient.prescription ? {
-        diagnosis: patient.prescription.diagnosis,
-        medicines: patient.prescription.medicines || [],
-        notes: patient.prescription.notes || '',
-        pdfPath: patient.prescription.pdfPath || null,
-        createdAt: patient.prescription.createdAt || patient.registrationDate
-      } : null,
+      doctor: patient.doctor
+        ? {
+            name: patient.doctor.fullName,
+            specialization: patient.doctor.specialization,
+            qualification: patient.doctor.qualification,
+            email: patient.doctor.email
+          }
+        : null,
+      vitals: {
+        bloodPressure: patient.bloodPressure,
+        sugarLevel: patient.sugarLevel
+      },
+      prescription: patient.prescription
+        ? {
+            diagnosis: patient.prescription.diagnosis,
+            medicines: patient.prescription.medicines || [],
+            inventoryItems: patient.prescription.inventoryItems || [],
+            notes: patient.prescription.notes || '',
+            pdfPath: patient.prescription.pdfPath || null,
+            createdAt: patient.prescription.createdAt || patient.registrationDate
+          }
+        : null,
       visitDetails: {
         fees: patient.fees,
         feeStatus: patient.feeStatus,
