@@ -15,7 +15,7 @@ const upload = multer({
     fileSize: 2 * 1024 * 1024 // 2MB limit
   },
   fileFilter: (req, file, cb) => {
-    // Accept common image MIME types
+    // Accept common image MIME types (including mobile variations)
     const allowedMimeTypes = [
       'image/jpeg',
       'image/jpg',
@@ -24,11 +24,24 @@ const upload = multer({
       'image/gif'
     ];
     
-    // Normalize MIME type
-    const normalizedMimeType = file.mimetype.toLowerCase().trim();
+    // Normalize MIME type (handle mobile-specific variations)
+    let normalizedMimeType = file.mimetype ? file.mimetype.toLowerCase().trim() : '';
+    
+    // If MIME type is missing or empty, try to infer from filename (mobile fallback)
+    if (!normalizedMimeType && file.originalname) {
+      const ext = file.originalname.toLowerCase().split('.').pop();
+      const mimeMap = {
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'webp': 'image/webp',
+        'gif': 'image/gif'
+      };
+      normalizedMimeType = mimeMap[ext] || '';
+    }
     
     // Check if MIME type is valid
-    const isValidImage = file.mimetype.startsWith('image/') && 
+    const isValidImage = normalizedMimeType && normalizedMimeType.startsWith('image/') && 
       (allowedMimeTypes.includes(normalizedMimeType) ||
        normalizedMimeType === 'image/jpeg' ||
        normalizedMimeType.includes('jpeg') ||
@@ -37,7 +50,7 @@ const upload = multer({
     if (isValidImage) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed (JPG, JPEG, PNG, WEBP)'), false);
+      cb(new Error('Only image files are allowed (JPG, JPEG, PNG, WEBP). Please select a valid image file.'), false);
     }
   }
 });
@@ -363,6 +376,60 @@ router.put('/:doctorId/profile-image', protect, (req, res, next) => {
     });
   } catch (error) {
     console.error('Profile image upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// Delete profile image
+router.delete('/:doctorId/profile-image', protect, async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+
+    // Check if user is updating their own profile or is admin/receptionist
+    if (req.user.role === 'doctor' && req.user.id !== doctorId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only update your own profile'
+      });
+    }
+
+    // Allow admin, doctor (own profile), and receptionist to delete profile images
+    if (!['admin', 'doctor', 'receptionist'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to delete profile image'
+      });
+    }
+
+    // Find doctor
+    const doctor = await User.findById(doctorId);
+    
+    if (!doctor || doctor.role !== 'doctor') {
+      return res.status(404).json({
+        success: false,
+        message: 'Doctor not found'
+      });
+    }
+
+    // Remove profile image
+    doctor.profileImage = null;
+    await doctor.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile image removed successfully',
+      data: {
+        doctorId: doctor._id,
+        fullName: doctor.fullName,
+        profileImage: null
+      }
+    });
+  } catch (error) {
+    console.error('Profile image deletion error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
