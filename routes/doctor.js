@@ -261,7 +261,7 @@ router.put('/:doctorId/profile-image', protect, (req, res, next) => {
   try {
     const { doctorId } = req.params;
 
-    // Check if user is updating their own profile or is admin
+    // Check if user is updating their own profile or is admin/receptionist
     if (req.user.role === 'doctor' && req.user.id !== doctorId) {
       return res.status(403).json({
         success: false,
@@ -269,7 +269,8 @@ router.put('/:doctorId/profile-image', protect, (req, res, next) => {
       });
     }
 
-    if (!['admin', 'doctor'].includes(req.user.role)) {
+    // Allow admin, doctor (own profile), and receptionist to update profile images
+    if (!['admin', 'doctor', 'receptionist'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to update profile image'
