@@ -290,7 +290,7 @@ export const getTodayPatients = async (req, res) => {
         $lt: tomorrow
       }
     })
-      .populate('doctor', 'fullName specialization qualification')
+      .populate('doctor', 'fullName specialization qualification profileImage')
     .sort({ tokenNumber: 1 });
 
     res.status(200).json({
@@ -313,7 +313,7 @@ export const getTodayPatients = async (req, res) => {
 export const getAllPatients = async (req, res) => {
   try {
     const patients = await Patient.find()
-      .populate('doctor', 'fullName specialization qualification fees')
+      .populate('doctor', 'fullName specialization qualification fees profileImage')
       .sort({ createdAt: -1 });
 
     res.status(200).json({
