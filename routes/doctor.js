@@ -15,10 +15,29 @@ const upload = multer({
     fileSize: 2 * 1024 * 1024 // 2MB limit
   },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    // Accept common image MIME types
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+      'image/gif'
+    ];
+    
+    // Normalize MIME type
+    const normalizedMimeType = file.mimetype.toLowerCase().trim();
+    
+    // Check if MIME type is valid
+    const isValidImage = file.mimetype.startsWith('image/') && 
+      (allowedMimeTypes.includes(normalizedMimeType) ||
+       normalizedMimeType === 'image/jpeg' ||
+       normalizedMimeType.includes('jpeg') ||
+       normalizedMimeType.includes('jpg'));
+    
+    if (isValidImage) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed'), false);
+      cb(new Error('Only image files are allowed (JPG, JPEG, PNG, WEBP)'), false);
     }
   }
 });
