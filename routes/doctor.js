@@ -384,6 +384,59 @@ router.put('/:doctorId/profile-image', protect, (req, res, next) => {
   }
 });
 
+// Update doctor fees
+router.put('/:doctorId/fees', protect, async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { fees } = req.body;
+
+    // Validation
+    if (fees === undefined || fees === null || fees < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid fee amount (must be >= 0)'
+      });
+    }
+
+    // Check if user is admin/receptionist
+    if (!['admin', 'receptionist'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to update doctor fees'
+      });
+    }
+
+    // Find and update doctor
+    const doctor = await User.findById(doctorId);
+    
+    if (!doctor || doctor.role !== 'doctor') {
+      return res.status(404).json({
+        success: false,
+        message: 'Doctor not found'
+      });
+    }
+
+    doctor.fees = Number(fees);
+    await doctor.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Doctor fees updated to ₹${fees}`,
+      data: {
+        doctorId: doctor._id,
+        fullName: doctor.fullName,
+        fees: doctor.fees
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
 // Delete profile image
 router.delete('/:doctorId/profile-image', protect, async (req, res) => {
   try {

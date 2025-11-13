@@ -12,6 +12,7 @@ export const registerPatient = async (req, res) => {
       mobileNumber,
       address,
       age,
+      gender,
       disease,
       doctor,
       fees,
@@ -27,7 +28,7 @@ export const registerPatient = async (req, res) => {
     } = req.body;
 
     // Validation
-    if (!fullName || !mobileNumber || !address || !age || !disease || !doctor || !bloodPressure || sugarLevel === undefined || sugarLevel === null) {
+    if (!fullName || !mobileNumber || !address || !age || !gender || !disease || !doctor || !bloodPressure || sugarLevel === undefined || sugarLevel === null) {
       return res.status(400).json({
         success: false,
         message: 'Please provide all required fields'
@@ -154,6 +155,7 @@ export const registerPatient = async (req, res) => {
       mobileNumber,
       address,
       age,
+      gender,
       disease,
       doctor,
       fees: finalFees,

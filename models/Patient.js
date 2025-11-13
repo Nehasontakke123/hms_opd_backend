@@ -22,6 +22,11 @@ const patientSchema = new mongoose.Schema({
     min: 0,
     max: 150
   },
+  gender: {
+    type: String,
+    enum: ['Male', 'Female', 'Other'],
+    required: [true, 'Please provide gender']
+  },
   disease: {
     type: String,
     required: [true, 'Please provide disease/health issue'],
