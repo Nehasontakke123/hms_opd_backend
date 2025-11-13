@@ -5,7 +5,8 @@ import {
   getTodayPatients,
   getAllPatients,
   cancelPatient,
-  updatePatientPayment
+  updatePatientPayment,
+  getEmergencyPatients
 } from '../controllers/patientController.js';
 
 const router = express.Router();
@@ -15,6 +16,7 @@ router.use(protect);
 
 router.post('/register', registerPatient);
 router.get('/today/:doctorId', getTodayPatients);
+router.get('/emergency/:doctorId', getEmergencyPatients);
 router.get('/', getAllPatients);
 router.put('/:patientId/cancel', cancelPatient);
 router.put('/:patientId/payment', updatePatientPayment);

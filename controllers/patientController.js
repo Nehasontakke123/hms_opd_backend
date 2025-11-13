@@ -19,6 +19,7 @@ export const registerPatient = async (req, res) => {
       visitDate,
       visitTime,
       isRecheck,
+      isEmergency,
       feeStatus,
       behaviorRating,
       paymentDate,
@@ -27,28 +28,56 @@ export const registerPatient = async (req, res) => {
       sugarLevel
     } = req.body;
 
+    // For emergency patients, set defaults and bypass some validations
+    const isEmergencyPatient = isEmergency === true;
+    const finalDisease = isEmergencyPatient ? (disease || 'Emergency Case') : disease;
+    // Ensure blood pressure is always a string, default to 'N/A' for emergency
+    const finalBloodPressure = isEmergencyPatient 
+      ? (bloodPressure ? String(bloodPressure).trim() : 'N/A') 
+      : (bloodPressure ? String(bloodPressure).trim() : '');
+    // Ensure sugar level is always a number, default to 1 for emergency
+    const finalSugarLevel = isEmergencyPatient 
+      ? (sugarLevel !== undefined && sugarLevel !== null ? Number(sugarLevel) : 1)
+      : (sugarLevel !== undefined && sugarLevel !== null ? Number(sugarLevel) : null);
+
     // Validation
-    if (!fullName || !mobileNumber || !address || !age || !gender || !disease || !doctor || !bloodPressure || sugarLevel === undefined || sugarLevel === null) {
+    if (!fullName || !mobileNumber || !address || !age || !gender || !doctor) {
       return res.status(400).json({
         success: false,
         message: 'Please provide all required fields'
       });
     }
 
-    const bpPattern = /^\d{2,3}(\/\d{2,3})?$/;
-    if (!bpPattern.test(String(bloodPressure).trim())) {
+    // Disease validation (required for non-emergency, optional for emergency)
+    if (!isEmergencyPatient && !finalDisease) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide a valid blood pressure reading (e.g. 120/80)'
+        message: 'Please provide disease/health issue'
       });
     }
 
-    const numericSugar = Number(sugarLevel);
-    if (!Number.isFinite(numericSugar) || numericSugar <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide a valid sugar level in mg/dL'
-      });
+    // Blood pressure validation (relaxed for emergency)
+    if (!isEmergencyPatient) {
+      // Accept formats: "120/80", "120", or just numbers
+      const bpPattern = /^\d{2,3}(\/\d{2,3})?$/;
+      const bpValue = finalBloodPressure ? String(finalBloodPressure).trim() : '';
+      if (!bpValue || !bpPattern.test(bpValue)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide a valid blood pressure reading (e.g. 120/80 or 120)'
+        });
+      }
+    }
+
+    // Sugar level validation (relaxed for emergency)
+    if (!isEmergencyPatient) {
+      const numericSugar = Number(finalSugarLevel);
+      if (finalSugarLevel === undefined || finalSugarLevel === null || !Number.isFinite(numericSugar) || numericSugar <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide a valid sugar level in mg/dL'
+        });
+      }
     }
 
     // Determine intended registration date/time
@@ -112,23 +141,39 @@ export const registerPatient = async (req, res) => {
       });
     }
 
-    // Count today's patients for this doctor
-    const todayPatientCount = await Patient.countDocuments({
-      doctor: doctor,
-      registrationDate: {
-        $gte: dayStart,
-        $lt: dayEnd
-      }
-    });
+    // Count today's patients for this doctor (exclude emergency patients from limit check)
+    // Emergency patients bypass daily limits
+    let todayPatientCount = 0;
+    
+    if (!isEmergencyPatient) {
+      todayPatientCount = await Patient.countDocuments({
+        doctor: doctor,
+        isEmergency: false, // Only count non-emergency patients
+        registrationDate: {
+          $gte: dayStart,
+          $lt: dayEnd
+        }
+      });
 
-    // Check if limit is reached
-    if (todayPatientCount >= doctorUser.dailyPatientLimit) {
-      return res.status(400).json({
-        success: false,
-        message: `Doctor ${doctorUser.fullName} has reached their daily patient limit of ${doctorUser.dailyPatientLimit}. Please select another doctor or try tomorrow.`,
-        limitReached: true,
-        doctorName: doctorUser.fullName,
-        dailyLimit: doctorUser.dailyPatientLimit
+      // Check if limit is reached (only for non-emergency patients)
+      if (todayPatientCount >= doctorUser.dailyPatientLimit) {
+        return res.status(400).json({
+          success: false,
+          message: `Doctor ${doctorUser.fullName} has reached their daily patient limit of ${doctorUser.dailyPatientLimit}. Please select another doctor or try tomorrow.`,
+          limitReached: true,
+          doctorName: doctorUser.fullName,
+          dailyLimit: doctorUser.dailyPatientLimit
+        });
+      }
+    } else {
+      // For emergency patients, still count for response but don't enforce limit
+      todayPatientCount = await Patient.countDocuments({
+        doctor: doctor,
+        isEmergency: false, // Only count non-emergency patients
+        registrationDate: {
+          $gte: dayStart,
+          $lt: dayEnd
+        }
       });
     }
 
@@ -156,16 +201,17 @@ export const registerPatient = async (req, res) => {
       address,
       age,
       gender,
-      disease,
+      disease: finalDisease,
       doctor,
       fees: finalFees,
       feeStatus: finalFeeStatus,
       isRecheck: isRecheck || false,
+      isEmergency: isEmergencyPatient,
       tokenNumber,
       registrationDate,
       behaviorRating: behaviorRating || null,
-      bloodPressure: String(bloodPressure).trim(),
-      sugarLevel: numericSugar
+      bloodPressure: finalBloodPressure,
+      sugarLevel: finalSugarLevel
     };
 
     // Add payment details if payment is completed
@@ -257,17 +303,22 @@ export const registerPatient = async (req, res) => {
       console.warn('[WhatsApp] Skipping notification because TWILIO credentials are not fully configured.');
     }
 
+    // Calculate remaining slots safely
+    const remainingSlots = Math.max(0, doctorUser.dailyPatientLimit - todayPatientCount - 1);
+
     res.status(201).json({
       success: true,
       data: patient,
       message: `Patient registered successfully. Token number: ${tokenNumber}`,
-      remainingSlots: doctorUser.dailyPatientLimit - todayPatientCount - 1
+      remainingSlots: remainingSlots
     });
   } catch (error) {
+    console.error('Patient registration error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: 'Server error during patient registration',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'An error occurred while registering the patient'
     });
   }
 };
@@ -299,6 +350,45 @@ export const getTodayPatients = async (req, res) => {
       success: true,
       count: patients.length,
       data: patients
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get emergency patients for a doctor
+// @route   GET /api/patient/emergency/:doctorId
+// @access  Private
+export const getEmergencyPatients = async (req, res) => {
+  try {
+    const doctorId = req.params.doctorId;
+
+    // Get today's date range
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const emergencyPatients = await Patient.find({
+      doctor: doctorId,
+      isEmergency: true,
+      registrationDate: {
+        $gte: today,
+        $lt: tomorrow
+      },
+      isCancelled: false
+    })
+      .populate('doctor', 'fullName specialization qualification profileImage')
+      .sort({ registrationDate: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: emergencyPatients.length,
+      data: emergencyPatients
     });
   } catch (error) {
     res.status(500).json({

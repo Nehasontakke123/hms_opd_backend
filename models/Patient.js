@@ -56,6 +56,10 @@ const patientSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  isEmergency: {
+    type: Boolean,
+    default: false
+  },
   bloodPressure: {
     type: String,
     required: [true, 'Please provide blood pressure reading'],
