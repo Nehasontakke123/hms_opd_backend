@@ -2,6 +2,101 @@ import Appointment from '../models/Appointment.js';
 import User from '../models/User.js';
 import { sendSMS } from '../utils/sendSMS.js';
 
+// Utility function to get day name from date
+const getDayName = (date) => {
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  return days[date.getDay()];
+};
+
+// Check if a date is available for a doctor based on weekly schedule
+const isDateAvailable = (date, doctor) => {
+  if (!doctor || !date) return true; // Default to available if no doctor
+  
+  const schedule = doctor.weeklySchedule || {};
+  const dayName = getDayName(date);
+  
+  // If schedule exists, check if the day is enabled
+  // Default to true if schedule doesn't exist (backward compatibility)
+  return schedule[dayName] !== false;
+};
+
+// Get available time slots for a doctor based on visiting hours
+const getAvailableTimeSlots = (doctor, selectedDate) => {
+  if (!doctor || !selectedDate) return [];
+  
+  const visitingHours = doctor.visitingHours || {};
+  const slots = [];
+  
+  // Check if date is available
+  if (!isDateAvailable(selectedDate, doctor)) {
+    return [];
+  }
+  
+  // Generate time slots for each enabled visiting hour period
+  const periods = ['morning', 'afternoon', 'evening'];
+  
+  periods.forEach(period => {
+    const periodHours = visitingHours[period];
+    if (periodHours?.enabled && periodHours.start && periodHours.end) {
+      const start = periodHours.start.split(':');
+      const end = periodHours.end.split(':');
+      const startHour = parseInt(start[0], 10);
+      const startMin = parseInt(start[1] || '0', 10);
+      const endHour = parseInt(end[0], 10);
+      const endMin = parseInt(end[1] || '0', 10);
+      
+      // Generate 30-minute slots
+      let currentHour = startHour;
+      let currentMin = startMin;
+      
+      while (
+        currentHour < endHour || 
+        (currentHour === endHour && currentMin < endMin)
+      ) {
+        const timeString = `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}`;
+        slots.push(timeString);
+        
+        // Increment by 30 minutes
+        currentMin += 30;
+        if (currentMin >= 60) {
+          currentMin = 0;
+          currentHour += 1;
+        }
+      }
+    }
+  });
+  
+  return slots.sort();
+};
+
+// Check if a time is available for a doctor
+const isTimeAvailable = (timeString, doctor, selectedDate) => {
+  if (!doctor || !timeString || !selectedDate) return true;
+  
+  // First check if date is available
+  if (!isDateAvailable(selectedDate, doctor)) {
+    return false;
+  }
+  
+  const availableSlots = getAvailableTimeSlots(doctor, selectedDate);
+  
+  // If no slots defined, allow any time (backward compatibility)
+  if (availableSlots.length === 0) {
+    return true;
+  }
+  
+  // Check if the time matches any available slot (within 30 min window)
+  const [hours, minutes] = timeString.split(':').map(Number);
+  const timeInMinutes = hours * 60 + minutes;
+  
+  return availableSlots.some(slot => {
+    const [slotHours, slotMinutes] = slot.split(':').map(Number);
+    const slotInMinutes = slotHours * 60 + slotMinutes;
+    // Allow times within 30 minutes of a slot
+    return Math.abs(timeInMinutes - slotInMinutes) <= 30;
+  });
+};
+
 // @desc    Create new appointment
 // @route   POST /api/appointment
 // @access  Private/Receptionist/Admin
@@ -33,6 +128,22 @@ export const createAppointment = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Doctor not found'
+      });
+    }
+
+    // Validate doctor availability
+    const appointmentDateObj = new Date(appointmentDate);
+    if (!isDateAvailable(appointmentDateObj, doctorUser)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Selected date is not available for this doctor. Please choose another date.'
+      });
+    }
+    
+    if (!isTimeAvailable(appointmentTime, doctorUser, appointmentDateObj)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Selected time is not available for this doctor on the chosen date. Please select an available time slot.'
       });
     }
 
@@ -229,6 +340,40 @@ export const updateAppointment = async (req, res) => {
     }
 
     const { patientName, mobileNumber, email, appointmentDate, appointmentTime, doctor, reason, status, notes, cancellationReason, refundAmount, refundStatus, refundNotes, cancelledAt } = req.body;
+
+    // If doctor, date, or time is being updated, validate availability
+    let doctorUser = appointment.doctor;
+    if (doctor && doctor !== appointment.doctor.toString()) {
+      doctorUser = await User.findById(doctor);
+      if (!doctorUser || doctorUser.role !== 'doctor') {
+        return res.status(404).json({
+          success: false,
+          message: 'Doctor not found'
+        });
+      }
+    } else if (appointment.doctor) {
+      doctorUser = await User.findById(appointment.doctor);
+    }
+
+    // Validate availability if date or time is being changed
+    if (doctorUser && (appointmentDate || appointmentTime)) {
+      const dateToCheck = appointmentDate ? new Date(appointmentDate) : appointment.appointmentDate;
+      const timeToCheck = appointmentTime || appointment.appointmentTime;
+      
+      if (!isDateAvailable(dateToCheck, doctorUser)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Selected date is not available for this doctor. Please choose another date.'
+        });
+      }
+      
+      if (!isTimeAvailable(timeToCheck, doctorUser, dateToCheck)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Selected time is not available for this doctor on the chosen date. Please select an available time slot.'
+        });
+      }
+    }
 
     // Update fields
     if (patientName) appointment.patientName = patientName;

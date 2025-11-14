@@ -79,6 +79,18 @@ const userSchema = new mongoose.Schema({
       end: { type: String, default: '21:00' }
     }
   },
+  weeklySchedule: {
+    // Weekly availability configuration
+    // Each day (0=Sunday, 1=Monday, ..., 6=Saturday) can be enabled/disabled
+    // If not specified, defaults to all days available
+    monday: { type: Boolean, default: true },
+    tuesday: { type: Boolean, default: true },
+    wednesday: { type: Boolean, default: true },
+    thursday: { type: Boolean, default: true },
+    friday: { type: Boolean, default: true },
+    saturday: { type: Boolean, default: true },
+    sunday: { type: Boolean, default: false }
+  },
   profileImage: {
     type: String,
     default: null

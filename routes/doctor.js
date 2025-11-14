@@ -491,4 +491,94 @@ router.delete('/:doctorId/profile-image', protect, async (req, res) => {
   }
 });
 
+// Update doctor visiting hours and weekly schedule
+router.put('/:doctorId/schedule', protect, async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { visitingHours, weeklySchedule } = req.body;
+
+    // Check if user is admin/receptionist or doctor updating their own schedule
+    if (!['admin', 'receptionist'].includes(req.user.role)) {
+      if (req.user.role === 'doctor' && req.user.id !== doctorId) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only update your own schedule'
+        });
+      }
+      if (req.user.role !== 'doctor') {
+        return res.status(403).json({
+          success: false,
+          message: 'Not authorized to update doctor schedule'
+        });
+      }
+    }
+
+    // Find doctor
+    const doctor = await User.findById(doctorId);
+    
+    if (!doctor || doctor.role !== 'doctor') {
+      return res.status(404).json({
+        success: false,
+        message: 'Doctor not found'
+      });
+    }
+
+    // Update visiting hours if provided
+    if (visitingHours) {
+      if (visitingHours.morning) {
+        doctor.visitingHours.morning = {
+          enabled: visitingHours.morning.enabled !== undefined ? visitingHours.morning.enabled : doctor.visitingHours.morning?.enabled || false,
+          start: visitingHours.morning.start || doctor.visitingHours.morning?.start || '09:00',
+          end: visitingHours.morning.end || doctor.visitingHours.morning?.end || '12:00'
+        };
+      }
+      if (visitingHours.afternoon) {
+        doctor.visitingHours.afternoon = {
+          enabled: visitingHours.afternoon.enabled !== undefined ? visitingHours.afternoon.enabled : doctor.visitingHours.afternoon?.enabled || false,
+          start: visitingHours.afternoon.start || doctor.visitingHours.afternoon?.start || '13:00',
+          end: visitingHours.afternoon.end || doctor.visitingHours.afternoon?.end || '16:00'
+        };
+      }
+      if (visitingHours.evening) {
+        doctor.visitingHours.evening = {
+          enabled: visitingHours.evening.enabled !== undefined ? visitingHours.evening.enabled : doctor.visitingHours.evening?.enabled || false,
+          start: visitingHours.evening.start || doctor.visitingHours.evening?.start || '18:00',
+          end: visitingHours.evening.end || doctor.visitingHours.evening?.end || '21:00'
+        };
+      }
+    }
+
+    // Update weekly schedule if provided
+    if (weeklySchedule) {
+      if (weeklySchedule.monday !== undefined) doctor.weeklySchedule.monday = weeklySchedule.monday;
+      if (weeklySchedule.tuesday !== undefined) doctor.weeklySchedule.tuesday = weeklySchedule.tuesday;
+      if (weeklySchedule.wednesday !== undefined) doctor.weeklySchedule.wednesday = weeklySchedule.wednesday;
+      if (weeklySchedule.thursday !== undefined) doctor.weeklySchedule.thursday = weeklySchedule.thursday;
+      if (weeklySchedule.friday !== undefined) doctor.weeklySchedule.friday = weeklySchedule.friday;
+      if (weeklySchedule.saturday !== undefined) doctor.weeklySchedule.saturday = weeklySchedule.saturday;
+      if (weeklySchedule.sunday !== undefined) doctor.weeklySchedule.sunday = weeklySchedule.sunday;
+    }
+
+    await doctor.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Doctor schedule updated successfully',
+      data: {
+        doctorId: doctor._id,
+        fullName: doctor.fullName,
+        visitingHours: doctor.visitingHours,
+        weeklySchedule: doctor.weeklySchedule
+      }
+    });
+  } catch (error) {
+    console.error('Schedule update error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
 export default router;

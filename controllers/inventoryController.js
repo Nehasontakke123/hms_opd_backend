@@ -6,7 +6,7 @@ import InventoryTransaction from '../models/InventoryTransaction.js';
 // @access  Private
 export const getAllMedicines = async (req, res) => {
   try {
-    const { search, lowStock, expiringSoon, expired, page = 1, limit = 50, sortBy = 'name', sortOrder = 'asc' } = req.query;
+    const { search, category, lowStock, expiringSoon, expired, page = 1, limit = 50, sortBy = 'name', sortOrder = 'asc' } = req.query;
     const skip = (page - 1) * limit;
 
     // Build base query - include medicines where isActive is true or doesn't exist
@@ -18,34 +18,46 @@ export const getAllMedicines = async (req, res) => {
     };
 
     let query = { ...baseConditions };
+    const queryConditions = [baseConditions];
+
+    // Category filter
+    if (category && category.trim()) {
+      queryConditions.push({ category: { $regex: category.trim(), $options: 'i' } });
+    }
 
     // Search filter
-    if (search) {
+    if (search && search.trim()) {
       const searchConditions = {
         $or: [
-          { name: { $regex: search, $options: 'i' } },
-          { genericName: { $regex: search, $options: 'i' } },
-          { brandName: { $regex: search, $options: 'i' } }
+          { name: { $regex: search.trim(), $options: 'i' } },
+          { genericName: { $regex: search.trim(), $options: 'i' } },
+          { brandName: { $regex: search.trim(), $options: 'i' } }
         ]
       };
-      query = { $and: [baseConditions, searchConditions] };
+      queryConditions.push(searchConditions);
+    }
+
+    // Build final query
+    if (queryConditions.length > 1) {
+      query = { $and: queryConditions };
+    } else {
+      query = baseConditions;
     }
 
     // Low stock filter
     if (lowStock === 'true') {
-      const allMedicines = await Medicine.find({
-        $or: [
-          { isActive: true },
-          { isActive: { $exists: false } }
-        ]
-      });
-      const lowStockIds = allMedicines
-        .filter(m => (m.stockQuantity || 0) <= (m.minStockLevel || 10))
-        .map(m => m._id);
+      const lowStockCondition = {
+        $expr: {
+          $lte: [
+            { $ifNull: ['$stockQuantity', 0] },
+            { $ifNull: ['$minStockLevel', 10] }
+          ]
+        }
+      };
       if (query.$and) {
-        query.$and.push({ _id: { $in: lowStockIds } });
+        query.$and.push(lowStockCondition);
       } else {
-        query._id = { $in: lowStockIds };
+        query = { $and: [query, lowStockCondition] };
       }
     }
 
@@ -62,7 +74,7 @@ export const getAllMedicines = async (req, res) => {
       if (query.$and) {
         query.$and.push(expiryCondition);
       } else {
-        query.expiryDate = expiryCondition.expiryDate;
+        query = { $and: [query, expiryCondition] };
       }
     }
 
@@ -72,22 +84,35 @@ export const getAllMedicines = async (req, res) => {
       if (query.$and) {
         query.$and.push(expiredCondition);
       } else {
-        query.expiryDate = expiredCondition.expiryDate;
+        query = { $and: [query, expiredCondition] };
       }
     }
 
-    // Build sort object
-    const sortField = sortBy || 'name';
+    // Build sort object - validate sortBy field to prevent errors
+    const allowedSortFields = ['name', 'price', 'stockQuantity', 'expiryDate', 'createdAt', 'category'];
+    const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'name';
     const sortDirection = sortOrder === 'desc' ? -1 : 1;
     const sortObject = { [sortField]: sortDirection };
 
-    const medicines = await Medicine.find(query)
-      .sort(sortObject)
-      .skip(skip)
-      .limit(parseInt(limit))
-      .select('-__v');
+    // Execute query with error handling
+    let medicines, total;
+    try {
+      medicines = await Medicine.find(query)
+        .sort(sortObject)
+        .skip(parseInt(skip))
+        .limit(parseInt(limit))
+        .select('-__v')
+        .lean();
 
-    const total = await Medicine.countDocuments(query);
+      total = await Medicine.countDocuments(query);
+    } catch (dbError) {
+      console.error('Database query error:', dbError);
+      return res.status(500).json({
+        success: false,
+        message: 'Database query failed',
+        error: dbError.message
+      });
+    }
 
     // Calculate statistics
     const allMedicines = await Medicine.find({
@@ -125,10 +150,11 @@ export const getAllMedicines = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Error in getAllMedicines:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'An error occurred while fetching medicines'
     });
   }
 };
