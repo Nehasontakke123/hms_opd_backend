@@ -404,16 +404,55 @@ export const getEmergencyPatients = async (req, res) => {
 // @access  Private
 export const getAllPatients = async (req, res) => {
   try {
-    const patients = await Patient.find()
+    const { withPrescriptions, page = 1, limit = 50, search } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Build query
+    let query = {};
+    
+    // If only prescriptions are requested
+    if (withPrescriptions === 'true') {
+      query.prescription = { $exists: true, $ne: null };
+      // Also ensure diagnosis exists
+      query['prescription.diagnosis'] = { $exists: true, $ne: null, $ne: '' };
+    }
+
+    // Search filter
+    if (search && search.trim()) {
+      query.$or = [
+        { fullName: { $regex: search.trim(), $options: 'i' } },
+        { mobileNumber: { $regex: search.trim(), $options: 'i' } },
+        { 'prescription.diagnosis': { $regex: search.trim(), $options: 'i' } }
+      ];
+    }
+
+    // Build sort - if prescriptions, sort by prescription date, otherwise by creation date
+    const sortOptions = withPrescriptions === 'true' 
+      ? { 'prescription.createdAt': -1 }
+      : { createdAt: -1 };
+
+    const patients = await Patient.find(query)
       .populate('doctor', 'fullName specialization qualification fees profileImage')
-      .sort({ createdAt: -1 });
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await Patient.countDocuments(query);
 
     res.status(200).json({
       success: true,
       count: patients.length,
-      data: patients
+      total,
+      data: patients,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
     });
   } catch (error) {
+    console.error('Error fetching patients:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
