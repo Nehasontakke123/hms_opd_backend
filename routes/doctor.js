@@ -55,16 +55,43 @@ const upload = multer({
   }
 });
 
-// Get all doctors
+// Get all doctors with pagination
 router.get('/', protect, async (req, res) => {
   try {
-    const doctors = await User.find({ role: 'doctor', isActive: true })
+    const { page = 1, limit = 8, search = '' } = req.query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build query
+    let query = { role: 'doctor', isActive: true };
+
+    // Add search filter if provided
+    if (search && search.trim()) {
+      query.$or = [
+        { fullName: { $regex: search, $options: 'i' } },
+        { specialization: { $regex: search, $options: 'i' } },
+        { qualification: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Get total count for pagination
+    const total = await User.countDocuments(query);
+
+    // Fetch paginated doctors
+    const doctors = await User.find(query)
       .select('-password')
-      .sort({ fullName: 1 });
+      .sort({ fullName: 1 })
+      .skip(skip)
+      .limit(limitNum);
 
     res.status(200).json({
       success: true,
       count: doctors.length,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      pages: Math.ceil(total / limitNum),
       data: doctors
     });
   } catch (error) {

@@ -56,26 +56,26 @@ export const registerPatient = async (req, res) => {
       });
     }
 
-    // Blood pressure validation (relaxed for emergency)
-    if (!isEmergencyPatient) {
-      // Accept formats: "120/80", "120", or just numbers
-      const bpPattern = /^\d{2,3}(\/\d{2,3})?$/;
-      const bpValue = finalBloodPressure ? String(finalBloodPressure).trim() : '';
-      if (!bpValue || !bpPattern.test(bpValue)) {
+    // Blood pressure validation - only validate format if a value is provided (optional field)
+    if (!isEmergencyPatient && finalBloodPressure && finalBloodPressure.trim() !== '') {
+      // Accept format: "120/80" (systolic/diastolic)
+      const bpPattern = /^\d{2,3}\/\d{2,3}$/;
+      const bpValue = String(finalBloodPressure).trim();
+      if (!bpPattern.test(bpValue)) {
         return res.status(400).json({
           success: false,
-          message: 'Please provide a valid blood pressure reading (e.g. 120/80 or 120)'
+          message: 'Please provide a valid blood pressure reading (e.g. 120/80)'
         });
       }
     }
 
-    // Sugar level validation (relaxed for emergency)
-    if (!isEmergencyPatient) {
+    // Sugar level validation - only validate format if a value is provided (optional field)
+    if (!isEmergencyPatient && finalSugarLevel !== undefined && finalSugarLevel !== null && finalSugarLevel !== 0) {
       const numericSugar = Number(finalSugarLevel);
-      if (finalSugarLevel === undefined || finalSugarLevel === null || !Number.isFinite(numericSugar) || numericSugar <= 0) {
+      if (!Number.isFinite(numericSugar) || numericSugar < 0.1) {
         return res.status(400).json({
           success: false,
-          message: 'Please provide a valid sugar level in mg/dL'
+          message: 'Please provide a valid sugar level in mg/dL (must be at least 0.1)'
         });
       }
     }
