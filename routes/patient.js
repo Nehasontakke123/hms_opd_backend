@@ -6,7 +6,9 @@ import {
   getAllPatients,
   cancelPatient,
   updatePatientPayment,
-  getEmergencyPatients
+  getEmergencyPatients,
+  getNextPatientId,
+  searchPatients
 } from '../controllers/patientController.js';
 
 const router = express.Router();
@@ -15,6 +17,8 @@ const router = express.Router();
 router.use(protect);
 
 router.post('/register', registerPatient);
+router.get('/next-id', getNextPatientId);
+router.get('/search', searchPatients);
 router.get('/today/:doctorId', getTodayPatients);
 router.get('/emergency/:doctorId', getEmergencyPatients);
 router.get('/', getAllPatients);

@@ -1,6 +1,12 @@
 import mongoose from 'mongoose';
 
 const patientSchema = new mongoose.Schema({
+  patientId: {
+    type: String,
+    required: true,
+    unique: true,
+    index: true
+  },
   fullName: {
     type: String,
     required: [true, 'Please provide patient name'],
@@ -126,5 +132,8 @@ const patientSchema = new mongoose.Schema({
 // Index for efficient queries
 patientSchema.index({ doctor: 1, registrationDate: -1 });
 patientSchema.index({ tokenNumber: 1, registrationDate: 1 });
+patientSchema.index({ patientId: 1 }); // Index for patientId searches
+patientSchema.index({ mobileNumber: 1 }); // Index for mobile number searches
+patientSchema.index({ fullName: 1, mobileNumber: 1 }); // Compound index for patient lookup
 
 export default mongoose.model('Patient', patientSchema);

@@ -1,6 +1,12 @@
 import Patient from '../models/Patient.js';
 import User from '../models/User.js';
 import { sendWhatsAppMessage } from '../utils/sendWhatsApp.js';
+import SequenceCounter from '../models/SequenceCounter.js';
+
+const formatPatientId = (seq) => {
+  const num = String(seq).padStart(6, '0')
+  return `TH-PT-${num}`
+}
 
 // @desc    Register new patient
 // @route   POST /api/patient/register
@@ -189,6 +195,31 @@ export const registerPatient = async (req, res) => {
     // Generate next token number
     const tokenNumber = lastPatient ? lastPatient.tokenNumber + 1 : 1;
 
+    // For recheck-up visits, find existing patient and reuse their patientId
+    let patientId;
+    if (isRecheck) {
+      // Search for existing patient by mobile number (most reliable) or name
+      const existingPatient = await Patient.findOne({
+        $or: [
+          { mobileNumber: mobileNumber.trim() },
+          { fullName: { $regex: `^${fullName.trim()}$`, $options: 'i' }, mobileNumber: mobileNumber.trim() }
+        ]
+      }).sort({ createdAt: 1 }); // Get the first/oldest record for this patient
+
+      if (existingPatient && existingPatient.patientId) {
+        // Reuse existing patient ID
+        patientId = existingPatient.patientId;
+      } else {
+        // If no existing patient found, generate new ID (first visit marked as recheck - shouldn't happen but handle gracefully)
+        const nextSeq = await SequenceCounter.getNextSequence('patientId')
+        patientId = formatPatientId(nextSeq)
+      }
+    } else {
+      // For new patients, generate unique Patient ID (global, never reused)
+      const nextSeq = await SequenceCounter.getNextSequence('patientId')
+      patientId = formatPatientId(nextSeq)
+    }
+
     // Create patient
     // For recheck-up visits, fees are always 0 and status is 'not_required'
     const finalFees = isRecheck ? 0 : (fees || 0)
@@ -196,6 +227,7 @@ export const registerPatient = async (req, res) => {
     
     // Set payment date and amount if payment is completed
     const patientData = {
+      patientId,
       fullName,
       mobileNumber,
       address,
@@ -230,7 +262,7 @@ export const registerPatient = async (req, res) => {
     
     const patient = await Patient.create(patientData);
 
-    await patient.populate('doctor', 'fullName specialization qualification');
+    await patient.populate('doctor', 'fullName specialization qualification mobileNumber clinicAddress');
 
     const whatsappConfigured = Boolean((process.env.TWILIO_WHATSAPP_ACCOUNT_SID || process.env.TWILIO_ACCOUNT_SID) && (process.env.TWILIO_WHATSAPP_AUTH_TOKEN || process.env.TWILIO_AUTH_TOKEN) && process.env.TWILIO_WHATSAPP_FROM);
 
@@ -323,6 +355,100 @@ export const registerPatient = async (req, res) => {
   }
 };
 
+// @desc    Get next Patient ID (preview/reserve-less)
+// @route   GET /api/patient/next-id
+// @access  Private
+export const getNextPatientId = async (req, res) => {
+  try {
+    // We don't reserve here; just peek what the next ID would look like
+    const doc = await SequenceCounter.findOne({ _id: 'patientId' })
+    const next = (doc?.seq || 0) + 1
+    return res.status(200).json({ success: true, patientId: formatPatientId(next) })
+  } catch (e) {
+    return res.status(500).json({ success: false, message: 'Failed to generate Patient ID preview' })
+  }
+}
+
+// @desc    Unified search for patients by Name, Mobile Number, or Patient ID
+// @route   GET /api/patient/search
+// @access  Private
+export const searchPatients = async (req, res) => {
+  try {
+    const { query, limit = 10 } = req.query;
+
+    if (!query || !query.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a search query'
+      });
+    }
+
+    const searchTerm = query.trim();
+
+    // Search by patient ID, mobile number, or name
+    const patients = await Patient.find({
+      $or: [
+        { patientId: { $regex: searchTerm, $options: 'i' } },
+        { mobileNumber: { $regex: searchTerm, $options: 'i' } },
+        { fullName: { $regex: searchTerm, $options: 'i' } }
+      ]
+    })
+      .populate('doctor', 'fullName specialization qualification')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .select('patientId fullName mobileNumber address age gender doctor createdAt isRecheck');
+
+    // Get unique patients grouped by patientId (to show patient profile)
+    const uniquePatientsMap = new Map();
+    
+    patients.forEach(patient => {
+      const pid = patient.patientId;
+      if (!uniquePatientsMap.has(pid)) {
+        uniquePatientsMap.set(pid, {
+          patientId: pid,
+          fullName: patient.fullName,
+          mobileNumber: patient.mobileNumber,
+          address: patient.address,
+          age: patient.age,
+          gender: patient.gender,
+          visitCount: 0,
+          lastVisit: null,
+          visits: []
+        });
+      }
+      
+      const patientProfile = uniquePatientsMap.get(pid);
+      patientProfile.visitCount += 1;
+      
+      if (!patientProfile.lastVisit || new Date(patient.createdAt) > new Date(patientProfile.lastVisit)) {
+        patientProfile.lastVisit = patient.createdAt;
+      }
+      
+      patientProfile.visits.push({
+        _id: patient._id,
+        doctor: patient.doctor,
+        registrationDate: patient.createdAt,
+        isRecheck: patient.isRecheck
+      });
+    });
+
+    const uniquePatients = Array.from(uniquePatientsMap.values());
+
+    res.status(200).json({
+      success: true,
+      count: uniquePatients.length,
+      data: uniquePatients
+    });
+  } catch (error) {
+    console.error('Error searching patients:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
 // @desc    Get patients for today by doctor
 // @route   GET /api/patient/today/:doctorId
 // @access  Private
@@ -343,7 +469,7 @@ export const getTodayPatients = async (req, res) => {
         $lt: tomorrow
       }
     })
-      .populate('doctor', 'fullName specialization qualification profileImage')
+      .populate('doctor', 'fullName specialization qualification profileImage mobileNumber clinicAddress')
     .sort({ tokenNumber: 1 });
 
     res.status(200).json({
@@ -382,7 +508,7 @@ export const getEmergencyPatients = async (req, res) => {
       },
       isCancelled: false
     })
-      .populate('doctor', 'fullName specialization qualification profileImage')
+      .populate('doctor', 'fullName specialization qualification profileImage mobileNumber clinicAddress')
       .sort({ registrationDate: -1 });
 
     res.status(200).json({
@@ -417,12 +543,14 @@ export const getAllPatients = async (req, res) => {
       query['prescription.diagnosis'] = { $exists: true, $ne: null, $ne: '' };
     }
 
-    // Search filter
+    // Search filter - search by name, mobile number, or patient ID
     if (search && search.trim()) {
+      const searchTerm = search.trim();
       query.$or = [
-        { fullName: { $regex: search.trim(), $options: 'i' } },
-        { mobileNumber: { $regex: search.trim(), $options: 'i' } },
-        { 'prescription.diagnosis': { $regex: search.trim(), $options: 'i' } }
+        { fullName: { $regex: searchTerm, $options: 'i' } },
+        { mobileNumber: { $regex: searchTerm, $options: 'i' } },
+        { patientId: { $regex: searchTerm, $options: 'i' } },
+        { 'prescription.diagnosis': { $regex: searchTerm, $options: 'i' } }
       ];
     }
 
@@ -432,7 +560,7 @@ export const getAllPatients = async (req, res) => {
       : { createdAt: -1 };
 
     const patients = await Patient.find(query)
-      .populate('doctor', 'fullName specialization qualification fees profileImage')
+      .populate('doctor', 'fullName specialization qualification fees profileImage mobileNumber clinicAddress')
       .sort(sortOptions)
       .skip(skip)
       .limit(parseInt(limit));
@@ -504,7 +632,7 @@ export const updatePatientPayment = async (req, res) => {
 
     await patient.save();
 
-    await patient.populate('doctor', 'fullName specialization qualification');
+    await patient.populate('doctor', 'fullName specialization qualification mobileNumber clinicAddress');
 
     res.status(200).json({
       success: true,

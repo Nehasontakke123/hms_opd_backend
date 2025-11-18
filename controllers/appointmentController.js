@@ -160,7 +160,7 @@ export const createAppointment = async (req, res) => {
       status: 'scheduled'
     });
 
-    await appointment.populate('doctor', 'fullName specialization');
+    await appointment.populate('doctor', 'fullName specialization qualification clinicAddress mobileNumber');
 
     if (skipSms === true) {
       return res.status(201).json({
@@ -280,7 +280,7 @@ export const getAllAppointments = async (req, res) => {
     }
 
     const appointments = await Appointment.find(query)
-      .populate('doctor', 'fullName specialization')
+      .populate('doctor', 'fullName specialization qualification clinicAddress mobileNumber')
       .sort({ appointmentDate: 1, appointmentTime: 1 });
 
     res.status(200).json({
@@ -303,7 +303,7 @@ export const getAllAppointments = async (req, res) => {
 export const getAppointmentById = async (req, res) => {
   try {
     const appointment = await Appointment.findById(req.params.id)
-      .populate('doctor', 'fullName specialization email mobileNumber');
+      .populate('doctor', 'fullName specialization qualification email mobileNumber clinicAddress');
 
     if (!appointment) {
       return res.status(404).json({
@@ -392,7 +392,7 @@ export const updateAppointment = async (req, res) => {
     if (refundNotes !== undefined) appointment.refundNotes = refundNotes;
 
     await appointment.save();
-    await appointment.populate('doctor', 'fullName specialization');
+    await appointment.populate('doctor', 'fullName specialization qualification clinicAddress mobileNumber');
 
     res.status(200).json({
       success: true,
@@ -444,7 +444,7 @@ export const cancelAppointment = async (req, res) => {
     const { id } = req.params;
     const { cancellationReason, refundAmount, refundStatus, refundNotes, notifyPatient } = req.body;
 
-    const appointment = await Appointment.findById(id).populate('doctor', 'fullName specialization');
+    const appointment = await Appointment.findById(id).populate('doctor', 'fullName specialization qualification clinicAddress mobileNumber');
 
     if (!appointment) {
       return res.status(404).json({
@@ -510,7 +510,7 @@ export const cancelAppointment = async (req, res) => {
       }
     }
 
-    await appointment.populate('doctor', 'fullName specialization');
+    await appointment.populate('doctor', 'fullName specialization qualification clinicAddress mobileNumber');
 
     res.status(200).json({
       success: true,
@@ -533,7 +533,7 @@ export const cancelAppointment = async (req, res) => {
 export const resendSMS = async (req, res) => {
   try {
     const appointment = await Appointment.findById(req.params.id)
-      .populate('doctor', 'fullName specialization');
+      .populate('doctor', 'fullName specialization qualification clinicAddress mobileNumber');
 
     if (!appointment) {
       return res.status(404).json({

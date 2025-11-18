@@ -118,7 +118,7 @@ router.get('/:doctorId/patients/history', protect, async (req, res) => {
     }
 
     const patients = await Patient.find({ doctor: doctorId })
-      .populate('doctor', 'fullName specialization qualification')
+      .populate('doctor', 'fullName specialization qualification clinicAddress mobileNumber')
       .sort({ registrationDate: -1, createdAt: -1 });
 
     res.status(200).json({

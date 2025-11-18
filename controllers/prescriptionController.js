@@ -120,7 +120,7 @@ export const createPrescription = async (req, res) => {
     patient.status = 'completed';
 
     await patient.save();
-    await patient.populate('doctor', 'fullName specialization qualification');
+    await patient.populate('doctor', 'fullName specialization qualification clinicAddress mobileNumber');
 
     // Update inventory - deduct stock for prescribed medicines
     try {
@@ -181,7 +181,7 @@ export const createPrescription = async (req, res) => {
 export const getPatientById = async (req, res) => {
   try {
     const patient = await Patient.findById(req.params.patientId)
-      .populate('doctor', 'fullName specialization qualification email');
+      .populate('doctor', 'fullName specialization qualification email clinicAddress mobileNumber');
 
     if (!patient) {
       return res.status(404).json({
@@ -232,7 +232,7 @@ export const getMedicalHistory = async (req, res) => {
     // Find all patient records matching the query
     // Populate doctor information and sort by registration date (newest first)
     const patients = await Patient.find(query)
-      .populate('doctor', 'fullName specialization qualification email')
+      .populate('doctor', 'fullName specialization qualification email clinicAddress mobileNumber')
       .sort({ registrationDate: -1 })
       .select('-__v');
 
@@ -253,7 +253,8 @@ export const getMedicalHistory = async (req, res) => {
         mobileNumber: patient.mobileNumber,
         address: patient.address,
         age: patient.age,
-        disease: patient.disease
+        disease: patient.disease,
+        patientId: patient.patientId // Unique Patient ID
       },
       doctor: patient.doctor
         ? {

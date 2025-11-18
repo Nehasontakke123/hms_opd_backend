@@ -20,7 +20,7 @@ export const getAllPrescriptions = async (req, res) => {
     }
 
     const patients = await Patient.find(query)
-      .populate('doctor', 'fullName specialization qualification')
+      .populate('doctor', 'fullName specialization qualification clinicAddress mobileNumber')
       .sort({ 'prescription.createdAt': -1 })
       .skip(skip)
       .limit(parseInt(limit))
@@ -85,7 +85,7 @@ export const getPrescriptionStats = async (req, res) => {
 export const getPrescriptionById = async (req, res) => {
   try {
     const patient = await Patient.findById(req.params.prescriptionId)
-      .populate('doctor', 'fullName specialization qualification email');
+      .populate('doctor', 'fullName specialization qualification email clinicAddress mobileNumber');
 
     if (!patient || !patient.prescription) {
       return res.status(404).json({

@@ -39,6 +39,11 @@ const userSchema = new mongoose.Schema({
   mobileNumber: {
     type: String
   },
+  clinicAddress: {
+    type: String,
+    trim: true,
+    default: ''
+  },
   isActive: {
     type: Boolean,
     default: true

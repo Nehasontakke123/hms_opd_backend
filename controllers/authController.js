@@ -59,7 +59,8 @@ export const login = async (req, res) => {
         qualification: user.qualification,
         profileImage: user.profileImage,
         fees: user.fees,
-        mobileNumber: user.mobileNumber
+        mobileNumber: user.mobileNumber,
+        clinicAddress: user.clinicAddress
       }
     });
   } catch (error) {
@@ -131,6 +132,7 @@ export const getMe = async (req, res) => {
         profileImage: user.profileImage,
         fees: user.fees,
         mobileNumber: user.mobileNumber,
+        clinicAddress: user.clinicAddress,
         isAvailable: user.isAvailable,
         dailyPatientLimit: user.dailyPatientLimit
       }
