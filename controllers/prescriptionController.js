@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Patient from '../models/Patient.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -214,8 +215,18 @@ export const getMedicalHistory = async (req, res) => {
     let query = {};
     
     if (patientId) {
-      // Search by patient ID
-      query._id = patientId;
+      // Support searching by Mongo ObjectId or unique patientId string (e.g., TH-PT-000018)
+      const trimmedPatientId = patientId.trim();
+      const searchConditions = [];
+
+      if (mongoose.Types.ObjectId.isValid(trimmedPatientId)) {
+        searchConditions.push({ _id: trimmedPatientId });
+      }
+
+      const patientIdRegex = new RegExp(`^${trimmedPatientId}$`, 'i');
+      searchConditions.push({ patientId: patientIdRegex });
+
+      query = searchConditions.length === 1 ? searchConditions[0] : { $or: searchConditions };
     } else if (mobileNumber) {
       // Search by mobile number (case-insensitive, partial match)
       query.mobileNumber = { $regex: mobileNumber.trim(), $options: 'i' };
@@ -253,6 +264,7 @@ export const getMedicalHistory = async (req, res) => {
         mobileNumber: patient.mobileNumber,
         address: patient.address,
         age: patient.age,
+        gender: patient.gender,
         disease: patient.disease,
         patientId: patient.patientId // Unique Patient ID
       },
@@ -275,6 +287,7 @@ export const getMedicalHistory = async (req, res) => {
             inventoryItems: patient.prescription.inventoryItems || [],
             notes: patient.prescription.notes || '',
             pdfPath: patient.prescription.pdfPath || null,
+            selectedTests: patient.prescription.selectedTests || [],
             createdAt: patient.prescription.createdAt || patient.registrationDate
           }
         : null,
@@ -283,7 +296,8 @@ export const getMedicalHistory = async (req, res) => {
         feeStatus: patient.feeStatus,
         isRecheck: patient.isRecheck,
         status: patient.status
-      }
+      },
+      behaviorRating: patient.behaviorRating || null
     }));
 
     // Get unique patient info from the first record (most recent)
