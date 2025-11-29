@@ -26,7 +26,7 @@ const ensureMedicalDir = async () => {
 // @access  Private/Doctor
 export const createPrescription = async (req, res) => {
   try {
-    const { diagnosis, medicines, notes, pdfData, inventoryItems } = req.body;
+    const { diagnosis, medicines, notes, pdfData, inventoryItems, selectedTests } = req.body;
 
     const normalizeField = (value) => {
       if (value === undefined || value === null) return '';
@@ -101,10 +101,27 @@ export const createPrescription = async (req, res) => {
       }
     }
 
+    // Normalize and save medicines with all fields
+    const normalizedMedicines = Array.isArray(medicines) ? medicines.map(med => ({
+      name: normalizeField(med.name),
+      dosage: normalizeField(med.dosage),
+      duration: normalizeField(med.duration),
+      times: med.times ? {
+        morning: Boolean(med.times.morning),
+        afternoon: Boolean(med.times.afternoon),
+        night: Boolean(med.times.night)
+      } : undefined,
+      dosageInstructions: normalizeField(med.dosageInstructions || med.instructions),
+      instructions: normalizeField(med.instructions || med.dosageInstructions),
+      dosePattern: normalizeField(med.dosePattern || med.frequencyPattern || med.frequency),
+      frequencyPattern: normalizeField(med.frequencyPattern || med.dosePattern || med.frequency),
+      frequency: normalizeField(med.frequency || med.dosePattern || med.frequencyPattern)
+    })) : [];
+
     // Update prescription
     patient.prescription = {
       diagnosis,
-      medicines,
+      medicines: normalizedMedicines,
       notes: notes || '',
       inventoryItems: Array.isArray(inventoryItems)
         ? inventoryItems.map(item => ({
@@ -114,6 +131,7 @@ export const createPrescription = async (req, res) => {
             dosage: normalizeField(item.dosage)
           }))
         : [],
+      selectedTests: Array.isArray(selectedTests) ? selectedTests : [],
       createdAt: new Date(),
       pdfPath: pdfPath || patient.prescription?.pdfPath || null
     };

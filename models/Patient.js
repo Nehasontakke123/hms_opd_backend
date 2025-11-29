@@ -107,7 +107,17 @@ const patientSchema = new mongoose.Schema({
     medicines: [{
       name: String,
       dosage: String,
-      duration: String
+      duration: String,
+      times: {
+        morning: { type: Boolean, default: false },
+        afternoon: { type: Boolean, default: false },
+        night: { type: Boolean, default: false }
+      },
+      dosageInstructions: String,
+      instructions: String,
+      dosePattern: String,
+      frequencyPattern: String,
+      frequency: String
     }],
     inventoryItems: [{
       name: String,
@@ -116,6 +126,7 @@ const patientSchema = new mongoose.Schema({
       dosage: String
     }],
     notes: String,
+    selectedTests: [String],
     createdAt: Date,
     pdfPath: String // Path to PDF file in medical section
   },
