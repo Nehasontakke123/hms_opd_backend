@@ -4,8 +4,7 @@ const patientSchema = new mongoose.Schema({
   patientId: {
     type: String,
     required: true,
-    unique: true,
-    index: true
+    unique: true
   },
   fullName: {
     type: String,
@@ -141,9 +140,10 @@ const patientSchema = new mongoose.Schema({
 });
 
 // Index for efficient queries
+// Note: patientId already has unique: true which creates an index automatically
 patientSchema.index({ doctor: 1, registrationDate: -1 });
 patientSchema.index({ tokenNumber: 1, registrationDate: 1 });
-patientSchema.index({ patientId: 1 }); // Index for patientId searches
+// Removed duplicate patientId index - unique: true already creates it
 patientSchema.index({ mobileNumber: 1 }); // Index for mobile number searches
 patientSchema.index({ fullName: 1, mobileNumber: 1 }); // Compound index for patient lookup
 

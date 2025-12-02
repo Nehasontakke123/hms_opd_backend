@@ -1,11 +1,13 @@
 import mongoose from 'mongoose';
 import Patient from '../models/Patient.js';
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { v2 as cloudinary } from 'cloudinary';
 import { sendWhatsAppMessage } from '../utils/sendWhatsApp.js';
 import { deductPrescriptionStock } from './inventoryController.js';
+import puppeteer from 'puppeteer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -186,10 +188,12 @@ export const createPrescription = async (req, res) => {
       message: pdfPath ? 'Prescription saved and PDF stored in medical section' : 'Prescription saved'
     });
   } catch (error) {
+    console.error('[Prescription Controller] Error:', error);
+    console.error('[Prescription Controller] Stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Server error',
-      error: error.message
+      error: process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message
     });
   }
 };
@@ -337,3 +341,263 @@ export const getMedicalHistory = async (req, res) => {
     });
   }
 };
+
+// @desc    Generate prescription PDF using Puppeteer and template
+// @route   POST /api/prescription/generate
+// @access  Private/Doctor
+export const generatePrescriptionPDF = async (req, res) => {
+  let browser = null;
+  try {
+    const { patientId } = req.body;
+
+    if (!patientId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Patient ID is required'
+      });
+    }
+
+    // Fetch patient with doctor info
+    const patient = await Patient.findById(patientId)
+      .populate('doctor', 'fullName specialization qualification clinicAddress mobileNumber');
+
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    if (!patient.prescription) {
+      return res.status(400).json({
+        success: false,
+        message: 'No prescription found for this patient'
+      });
+    }
+
+    // Get template file path
+    const templatePath = path.join(__dirname, '../templates/prescription-template.html');
+    
+    // Log template path
+    console.log('[PDF Generation] Template path:', templatePath);
+    console.log('[PDF Generation] Template exists:', fsSync.existsSync(templatePath));
+
+    // Read template file
+    let templateHtml;
+    try {
+      templateHtml = fsSync.readFileSync(templatePath, 'utf8');
+      console.log('[PDF Generation] Template loaded successfully. First 200 chars:', templateHtml.substring(0, 200));
+    } catch (templateError) {
+      console.error('[PDF Generation] Error reading template file:', templateError);
+      console.error('[PDF Generation] Stack:', templateError.stack);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to load prescription template',
+        error: process.env.NODE_ENV === 'development' ? templateError.message : 'Template loading error'
+      });
+    }
+
+    // Prepare data for template
+    const doctor = patient.doctor || {};
+    const prescription = patient.prescription;
+
+    // Format date - use prescription date if available, otherwise fallback to today
+    let dateValue;
+    if (prescription?.createdAt) {
+      // Use prescription creation date
+      dateValue = new Date(prescription.createdAt);
+    } else if (patient?.registrationDate) {
+      // Use patient registration date
+      dateValue = new Date(patient.registrationDate);
+    } else {
+      // Fallback to today's date
+      dateValue = new Date();
+    }
+    
+    // Format date as DD/MM/YYYY using en-IN locale
+    const date = dateValue.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+
+    // Format medicines HTML
+    let medicinesHtml = '';
+    if (prescription.medicines && Array.isArray(prescription.medicines)) {
+      prescription.medicines.forEach((med, index) => {
+        const morningChecked = med.times?.morning ? 'checked' : '';
+        const afternoonChecked = med.times?.afternoon ? 'checked' : '';
+        const nightChecked = med.times?.night ? 'checked' : '';
+        
+        // Generate frequency string in format: "1 – 0 – 1" (Morning – Afternoon – Night)
+        const frequency = 
+          (med.times?.morning ? '1' : '0') + ' – ' +
+          (med.times?.afternoon ? '1' : '0') + ' – ' +
+          (med.times?.night ? '1' : '0');
+        
+        // Build dose pattern/frequency display
+        const doseInfo = med.dosage || med.dosePattern || med.frequencyPattern || med.frequency || '';
+        
+        medicinesHtml += `
+          <div class="medicine-item">
+            <span class="medicine-number">${index + 1}.</span>
+            <span class="medicine-name">${escapeHtml(med.name || '')}</span>
+            <div class="medicine-detail">
+              ${doseInfo ? `<div class="medicine-detail-line"><strong>Dosage:</strong> ${escapeHtml(doseInfo)}</div>` : ''}
+              <div class="medicine-detail-line">
+                <strong>Frequency:</strong> ${frequency}
+              </div>
+              <div class="medicine-detail-line">
+                <strong>Timing:</strong>
+                <span class="timing-checkbox ${morningChecked ? 'checked' : ''}"></span> Morning
+                <span class="timing-checkbox ${afternoonChecked ? 'checked' : ''}"></span> Afternoon
+                <span class="timing-checkbox ${nightChecked ? 'checked' : ''}"></span> Night
+              </div>
+              ${med.duration ? `<div class="medicine-detail-line"><strong>Duration:</strong> ${escapeHtml(med.duration)}</div>` : ''}
+              ${(med.instructions || med.dosageInstructions) ? `<div class="medicine-detail-line"><strong>Instructions:</strong> ${escapeHtml(med.instructions || med.dosageInstructions)}</div>` : ''}
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    // Format tests HTML
+    let testsHtml = '';
+    if (prescription.selectedTests && Array.isArray(prescription.selectedTests)) {
+      prescription.selectedTests.forEach(test => {
+        testsHtml += `<div class="test-item">• ${escapeHtml(test)}</div>`;
+      });
+    }
+
+    // Format additional notes - include diagnosis if available
+    let additionalNotes = '';
+    if (prescription.diagnosis) {
+      additionalNotes += `<div><strong>Diagnosis:</strong> ${escapeHtml(prescription.diagnosis)}</div>`;
+    }
+    if (prescription.notes) {
+      additionalNotes += `<div style="margin-top: 3mm;">${escapeHtml(prescription.notes)}</div>`;
+    }
+
+    // Format signature and stamp - only include if values exist
+    let signatureHtml = '';
+    if (prescription.doctorSignatureUrl && prescription.doctorSignatureUrl.trim() !== '') {
+      signatureHtml = `<img src="${escapeHtml(prescription.doctorSignatureUrl)}" alt="Doctor Signature" />`;
+    }
+
+    let stampHtml = '';
+    if (prescription.clinicStampUrl && prescription.clinicStampUrl.trim() !== '') {
+      stampHtml = `<img src="${escapeHtml(prescription.clinicStampUrl)}" alt="Clinic Stamp" />`;
+    }
+    
+    // Also check if signature/stamp URLs are passed directly (from user profile)
+    const doctorSignatureUrl = prescription.doctorSignatureUrl || doctor.signatureImage || '';
+    const clinicStampUrl = prescription.clinicStampUrl || doctor.stampImage || '';
+    
+    if (doctorSignatureUrl && doctorSignatureUrl.trim() !== '' && !signatureHtml) {
+      signatureHtml = `<img src="${escapeHtml(doctorSignatureUrl)}" alt="Doctor Signature" />`;
+    }
+    
+    if (clinicStampUrl && clinicStampUrl.trim() !== '' && !stampHtml) {
+      stampHtml = `<img src="${escapeHtml(clinicStampUrl)}" alt="Clinic Stamp" />`;
+    }
+
+    // Format doctor name with "Dr." prefix if not already present
+    let doctorName = doctor.fullName || 'Dr. Unknown';
+    if (doctorName && !doctorName.toUpperCase().startsWith('DR.') && !doctorName.startsWith('Dr.')) {
+      doctorName = `DR. ${doctorName.toUpperCase()}`;
+    } else if (doctorName) {
+      doctorName = doctorName.toUpperCase();
+    }
+
+    // Replace placeholders in template
+    let html = templateHtml
+      .replace(/\{\{doctorName\}\}/g, escapeHtml(doctorName))
+      .replace(/\{\{doctorQualifications\}\}/g, escapeHtml(doctor.qualification || ''))
+      .replace(/\{\{doctorSpeciality\}\}/g, escapeHtml(doctor.specialization || 'General Physician'))
+      .replace(/\{\{doctorRegNo\}\}/g, escapeHtml(doctor.registrationNumber || 'N/A'))
+      .replace(/\{\{patientName\}\}/g, escapeHtml(patient.fullName || ''))
+      .replace(/\{\{patientWeight\}\}/g, escapeHtml(patient.weight || patient.prescription?.weight || ''))
+      .replace(/\{\{patientAge\}\}/g, escapeHtml(String(patient.age || '')))
+      .replace(/\{\{patientSex\}\}/g, escapeHtml(patient.gender || ''))
+      .replace(/\{\{date\}\}/g, escapeHtml(date))
+      .replace(/\{\{medicines\}\}/g, medicinesHtml || '<div style="font-style: italic; color: #666;">No medicines prescribed.</div>')
+      .replace(/\{\{tests\}\}/g, testsHtml || '<div style="font-style: italic; color: #666;">No tests prescribed.</div>')
+      .replace(/\{\{additionalNotes\}\}/g, additionalNotes || '')
+      .replace(/\{\{doctorSignatureUrl\}\}/g, signatureHtml.trim() || '')
+      .replace(/\{\{clinicStampUrl\}\}/g, stampHtml.trim() || '');
+
+    // Log HTML snippet before Puppeteer
+    console.log('[PDF Generation] HTML prepared. First 200 chars:', html.substring(0, 200));
+    console.log('[PDF Generation] Starting Puppeteer browser...');
+
+    // Launch Puppeteer
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+
+    const page = await browser.newPage();
+    
+    // Set content and wait for fonts/resources
+    console.log('[PDF Generation] Setting page content...');
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+
+    // Generate PDF
+    console.log('[PDF Generation] Generating PDF...');
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: {
+        top: '0mm',
+        right: '0mm',
+        bottom: '0mm',
+        left: '0mm'
+      }
+    });
+
+    console.log('[PDF Generation] PDF generated successfully. Size:', pdfBuffer.length, 'bytes');
+
+    // Close browser
+    await browser.close();
+    browser = null;
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="prescription_${patient.fullName.replace(/\s/g, '_')}_${patient.tokenNumber}.pdf"`);
+
+    // Send PDF
+    res.send(pdfBuffer);
+
+  } catch (error) {
+    console.error('[PDF Generation] Error:', error);
+    console.error('[PDF Generation] Stack:', error.stack);
+    
+    // Close browser if still open
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (closeError) {
+        console.error('[PDF Generation] Error closing browser:', closeError);
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate prescription PDF',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'PDF generation error'
+    });
+  }
+};
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+  if (!text) return '';
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return String(text).replace(/[&<>"']/g, m => map[m]);
+}

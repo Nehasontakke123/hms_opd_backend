@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEKISKY HOSPITAL - Prescription</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 210mm;
+            height: 297mm;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: white;
+            color: #0a4ea3;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            width: 210mm;
+            height: 297mm;
+            position: relative;
+            background: white;
+        }
+
+        /* LEFT SIDEBAR - 30% */
+        .sidebar {
+            width: 30%;
+            background: linear-gradient(180deg, #E8F4FD 0%, #B4DBF9 50%, #E8F4FF 100%);
+            position: relative;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Premium Wave Header - Left Sidebar */
+        .wave-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 38mm;
+            background: linear-gradient(135deg, #B4DBF9 0%, #E8F4FF 50%, white 100%);
+            clip-path: polygon(0 0, 100% 0, 100% 70%, 0 100%);
+            z-index: 1;
+        }
+
+        /* Clinic Name - Premium Styling */
+        .clinic-name {
+            position: relative;
+            z-index: 2;
+            margin-top: 10mm;
+            margin-left: 5mm;
+            padding-right: 3mm;
+        }
+
+        .clinic-name-main {
+            font-size: 22pt;
+            font-weight: bold;
+            color: #0a4ea3;
+            line-height: 1.2;
+            margin-bottom: 1mm;
+            letter-spacing: 1.2pt;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .clinic-name-sub {
+            font-size: 18pt;
+            font-weight: 600;
+            color: #2563eb;
+            line-height: 1.2;
+            margin-left: 2mm;
+            letter-spacing: 0.8pt;
+        }
+
+        /* Golden Caduceus */
+        .caduceus {
+            position: relative;
+            z-index: 2;
+            width: 26mm;
+            height: 26mm;
+            margin: 6mm 0 6mm 5mm;
+        }
+
+        /* Facilities Section */
+        .facilities {
+            position: relative;
+            z-index: 2;
+            margin-top: 4mm;
+            padding: 0 5mm;
+            flex: 1;
+        }
+
+        .facilities-title {
+            font-size: 12pt;
+            font-weight: bold;
+            color: #C80000;
+            text-align: center;
+            margin-bottom: 6mm;
+            letter-spacing: 0.5pt;
+        }
+
+        .facility-item {
+            font-size: 8pt;
+            color: #1A1C20;
+            line-height: 1.8;
+            margin-bottom: 3mm;
+            padding-left: 4mm;
+            position: relative;
+            text-align: left;
+        }
+
+        .facility-item::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            color: #0a4ea3;
+            font-weight: bold;
+            font-size: 11pt;
+        }
+
+        /* Stethoscope Watermark - Bottom Left Only */
+        .sidebar-watermark {
+            position: absolute;
+            bottom: 25mm;
+            left: 5mm;
+            width: 55mm;
+            height: 55mm;
+            opacity: 0.06;
+            z-index: 1;
+        }
+
+        /* RIGHT MAIN CONTENT - 70% */
+        .main-content {
+            width: 70%;
+            background: white;
+            padding: 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Premium Top Header - Right Content */
+        .top-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            height: 45mm;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .top-wave {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #B4DBF9 0%, #E8F4FF 60%, white 100%);
+            clip-path: polygon(0 0, 100% 0, 100% 55%, 0 100%);
+        }
+
+        /* Golden Caduceus in Top Right */
+        .top-caduceus {
+            position: absolute;
+            top: 6mm;
+            right: 10mm;
+            width: 15mm;
+            height: 15mm;
+            z-index: 2;
+        }
+
+        /* Premium Doctor Block */
+        .doctor-block {
+            position: relative;
+            z-index: 2;
+            text-align: right;
+            margin: 14mm 15mm 10mm 15mm;
+            padding-bottom: 6mm;
+        }
+
+        .doctor-name {
+            font-size: 16pt;
+            font-weight: bold;
+            color: #0a4ea3;
+            margin-bottom: 3mm;
+            letter-spacing: 0.5pt;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .doctor-qualifications {
+            font-size: 11pt;
+            color: #0a4ea3;
+            margin-bottom: 2mm;
+            font-weight: 500;
+        }
+
+        .doctor-speciality {
+            font-size: 11pt;
+            color: #0a4ea3;
+            margin-bottom: 2mm;
+            font-weight: 500;
+        }
+
+        .doctor-regno {
+            font-size: 10pt;
+            color: #0a4ea3;
+            font-weight: 500;
+        }
+
+        /* Patient Details - Clean Single Row */
+        .patient-details {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            align-items: baseline;
+            flex-wrap: nowrap;
+            gap: 7mm;
+            margin: 0 15mm 8mm 15mm;
+            font-size: 11.5pt;
+            color: #0a4ea3;
+            justify-content: space-between;
+        }
+
+        .patient-name-field {
+            display: flex;
+            align-items: baseline;
+            gap: 3mm;
+        }
+
+        .patient-inline-field {
+            display: flex;
+            align-items: baseline;
+            gap: 2mm;
+        }
+
+        .patient-label {
+            font-weight: 500;
+            white-space: nowrap;
+            color: #0a4ea3;
+        }
+
+        .patient-value {
+            border-bottom: 1.5px solid #0a4ea3;
+            min-width: 38mm;
+            padding-bottom: 1.5mm;
+            display: inline-block;
+            font-weight: 500;
+        }
+
+        .patient-inline-value {
+            border-bottom: 1.5px solid #0a4ea3;
+            min-width: 22mm;
+            padding-bottom: 1.5mm;
+            display: inline-block;
+            font-weight: 500;
+        }
+
+        .patient-inline-field:last-child {
+            margin-left: auto;
+            text-align: right;
+        }
+
+        /* Premium RX Symbol - Sharper & Larger */
+        .rx-symbol {
+            position: relative;
+            z-index: 2;
+            font-size: 56pt;
+            font-weight: 900;
+            color: #0a4ea3;
+            margin: 6mm 15mm 10mm 15mm;
+            line-height: 1;
+            text-align: left;
+            font-family: Arial, Helvetica, sans-serif;
+            letter-spacing: 2pt;
+        }
+
+        /* Prescription Section */
+        .prescription-section {
+            position: relative;
+            z-index: 2;
+            margin: 0 15mm 12mm 15mm;
+        }
+
+        .medicine-item {
+            margin-bottom: 10mm;
+            font-size: 11.5pt;
+            color: #0a4ea3;
+            line-height: 2;
+        }
+
+        .medicine-number {
+            font-weight: bold;
+            display: inline;
+            margin-right: 2mm;
+        }
+
+        .medicine-name {
+            font-weight: bold;
+            display: inline;
+            color: #0a4ea3;
+        }
+
+        .medicine-detail {
+            margin-left: 10mm;
+            margin-top: 3mm;
+            font-size: 10.5pt;
+            line-height: 1.8;
+        }
+
+        .medicine-detail-line {
+            margin-bottom: 2mm;
+        }
+
+        .timing-checkbox {
+            display: inline-block;
+            width: 3.5mm;
+            height: 3.5mm;
+            border: 1.5px solid #0a4ea3;
+            margin: 0 2mm 0 3mm;
+            vertical-align: middle;
+            border-radius: 0;
+        }
+
+        .timing-checkbox.checked {
+            background: #0a4ea3;
+        }
+
+        /* Tests Section */
+        .tests-section {
+            position: relative;
+            z-index: 2;
+            margin: 0 15mm 12mm 15mm;
+            font-size: 11.5pt;
+            color: #0a4ea3;
+        }
+
+        .tests-title {
+            font-weight: bold;
+            margin-bottom: 4mm;
+            font-size: 12pt;
+        }
+
+        .test-item {
+            margin-left: 10mm;
+            margin-bottom: 2.5mm;
+            line-height: 1.8;
+        }
+
+        /* Additional Notes */
+        .notes-section {
+            position: relative;
+            z-index: 2;
+            margin: 0 15mm 12mm 15mm;
+            font-size: 11.5pt;
+            color: #0a4ea3;
+            line-height: 1.8;
+        }
+
+        /* Signature & Stamp - Only show if content exists */
+        .signature-section {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin: 15mm 15mm 8mm 15mm;
+            min-height: 30mm;
+        }
+
+        .signature-box {
+            width: 55mm;
+            height: 28mm;
+            border: none;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 9pt;
+            color: transparent;
+        }
+
+        .signature-box:not(:empty) {
+            display: flex;
+            border: 1.5px solid #d1d5db;
+            border-radius: 2px;
+            background: #fafafa;
+            padding: 2mm;
+        }
+
+        .signature-box img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .stamp-box {
+            width: 50mm;
+            height: 28mm;
+            border: none;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 9pt;
+            color: transparent;
+        }
+
+        .stamp-box:not(:empty) {
+            display: flex;
+            border: 1.5px solid #d1d5db;
+            border-radius: 2px;
+            background: #fafafa;
+            padding: 2mm;
+        }
+
+        .stamp-box img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* FOOTER */
+        .footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 70%;
+            margin-left: 30%;
+            background: white;
+            z-index: 3;
+            padding: 0;
+        }
+
+        .footer-timings {
+            background: linear-gradient(90deg, #B4DBF9 0%, #E8F4FF 100%);
+            color: #0a4ea3;
+            text-align: center;
+            padding: 4mm 0;
+            font-size: 9pt;
+            font-weight: 600;
+            margin-bottom: 0;
+        }
+
+        .footer-content {
+            background: white;
+            padding: 4mm 0;
+            text-align: center;
+        }
+
+        .footer-hospital {
+            font-size: 15pt;
+            font-weight: bold;
+            color: #0a4ea3;
+            margin-bottom: 2mm;
+            letter-spacing: 0.8pt;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .footer-address {
+            font-size: 8.5pt;
+            color: #4b5563;
+            margin-top: 2mm;
+            line-height: 1.6;
+        }
+
+        .footer-phone {
+            font-size: 8.5pt;
+            color: #4b5563;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                width: 210mm;
+                height: 297mm;
+            }
+            .container {
+                page-break-after: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- LEFT SIDEBAR (30%) -->
+        <div class="sidebar">
+            <div class="wave-header"></div>
+            
+            <div class="clinic-name">
+                <div class="clinic-name-main">TEKISKY</div>
+                <div class="clinic-name-sub">HOSPITAL</div>
+            </div>
+
+            <svg class="caduceus" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="goldGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#DAA520;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                <!-- Staff -->
+                <line x1="50" y1="8" x2="50" y2="92" stroke="url(#goldGradient)" stroke-width="4" stroke-linecap="round"/>
+                <!-- Wings -->
+                <path d="M 40 8 Q 35 5, 30 8 Q 35 12, 40 8" fill="url(#goldGradient)"/>
+                <path d="M 60 8 Q 65 5, 70 8 Q 65 12, 60 8" fill="url(#goldGradient)"/>
+                <!-- Left Snake -->
+                <path d="M 45 15 Q 42 25, 40 35 Q 38 45, 40 55 Q 42 65, 45 75 Q 47 85, 50 92" stroke="url(#goldGradient)" stroke-width="3" fill="none" stroke-linecap="round"/>
+                <!-- Right Snake -->
+                <path d="M 55 15 Q 58 25, 60 35 Q 62 45, 60 55 Q 58 65, 55 75 Q 53 85, 50 92" stroke="url(#goldGradient)" stroke-width="3" fill="none" stroke-linecap="round"/>
+                <!-- Snake heads -->
+                <circle cx="45" cy="90" r="3" fill="url(#goldGradient)"/>
+                <circle cx="55" cy="90" r="3" fill="url(#goldGradient)"/>
+            </svg>
+
+            <div class="facilities">
+                <div class="facilities-title">उपलब्ध सुविधा</div>
+                <div class="facility-item">Laboratory Facility (सभी खून की जांच)</div>
+                <div class="facility-item">B.P. Checkup और इलाज</div>
+                <div class="facility-item">Diabetes Checkup और इलाज</div>
+                <div class="facility-item">Jaundice, Typhoid, Malaria, Pneumonia, Diarrhoea Checkup और इलाज</div>
+                <div class="facility-item">Day Care Admission सुविधा उपलब्ध</div>
+                <div class="facility-item">बच्चे बडे और औरतों के सभी इलाज</div>
+                <div class="facility-item">थाएरॉईड, बाल झडना, किडनी स्टोन और स्किन (चमडी) की सभी बिमारियों पर विषेश इलाज</div>
+                <div class="facility-item">हिजामा थेरपी</div>
+                <div class="facility-item">ग्लूकोमीटर, और नेबुलायझेशन की सुविधा</div>
+            </div>
+
+            <!-- Stethoscope Watermark - Bottom Left Only -->
+            <svg class="sidebar-watermark" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                <path d="M 100 20 Q 80 40 80 60 Q 80 80 100 100 Q 120 80 120 60 Q 120 40 100 20" 
+                      stroke="#0a4ea3" stroke-width="8" fill="none" stroke-linecap="round"/>
+                <path d="M 100 100 L 100 140" stroke="#0a4ea3" stroke-width="8" stroke-linecap="round"/>
+                <circle cx="80" cy="160" r="15" stroke="#0a4ea3" stroke-width="8" fill="none"/>
+                <circle cx="120" cy="160" r="15" stroke="#0a4ea3" stroke-width="8" fill="none"/>
+                <path d="M 100 140 Q 90 150 80 160" stroke="#0a4ea3" stroke-width="8" fill="none" stroke-linecap="round"/>
+                <path d="M 100 140 Q 110 150 120 160" stroke="#0a4ea3" stroke-width="8" fill="none" stroke-linecap="round"/>
+            </svg>
+        </div>
+
+        <!-- RIGHT MAIN CONTENT (70%) -->
+        <div class="main-content">
+            <div class="top-header">
+                <div class="top-wave"></div>
+            </div>
+
+            <div class="top-caduceus">
+                <svg width="15mm" height="15mm" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="goldGradientTop" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#DAA520;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                    <line x1="50" y1="8" x2="50" y2="92" stroke="url(#goldGradientTop)" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M 40 8 Q 35 5, 30 8 Q 35 12, 40 8" fill="url(#goldGradientTop)"/>
+                    <path d="M 60 8 Q 65 5, 70 8 Q 65 12, 60 8" fill="url(#goldGradientTop)"/>
+                    <path d="M 45 15 Q 42 25, 40 35 Q 38 45, 40 55 Q 42 65, 45 75 Q 47 85, 50 92" stroke="url(#goldGradientTop)" stroke-width="3" fill="none" stroke-linecap="round"/>
+                    <path d="M 55 15 Q 58 25, 60 35 Q 62 45, 60 55 Q 58 65, 55 75 Q 53 85, 50 92" stroke="url(#goldGradientTop)" stroke-width="3" fill="none" stroke-linecap="round"/>
+                </svg>
+            </div>
+
+            <!-- Premium Doctor Details -->
+            <div class="doctor-block">
+                <div class="doctor-name">DR. {{doctorName}}</div>
+                <div class="doctor-qualifications">{{doctorQualifications}}</div>
+                <div class="doctor-speciality">{{doctorSpeciality}}</div>
+                <div class="doctor-regno">Regd. No.: {{doctorRegNo}}</div>
+            </div>
+
+            <!-- Patient Details - Single Row -->
+            <div class="patient-details">
+                <div class="patient-name-field">
+                    <span class="patient-label">Patient Name:</span>
+                    <span class="patient-value">{{patientName}}</span>
+                </div>
+                <div class="patient-inline-field">
+                    <span class="patient-label">Wt.:</span>
+                    <span class="patient-inline-value">{{patientWeight}}</span>
+                </div>
+                <div class="patient-inline-field">
+                    <span class="patient-label">Age:</span>
+                    <span class="patient-inline-value">{{patientAge}}</span>
+                </div>
+                <div class="patient-inline-field">
+                    <span class="patient-label">Sex:</span>
+                    <span class="patient-inline-value">{{patientSex}}</span>
+                </div>
+                <div class="patient-inline-field">
+                    <span class="patient-label">Date:</span>
+                    <span class="patient-inline-value">{{date}}</span>
+                </div>
+            </div>
+
+            <!-- Premium RX Symbol -->
+            <div class="rx-symbol">℞</div>
+
+            <!-- Prescription Section -->
+            <div class="prescription-section">
+                {{medicines}}
+            </div>
+
+            <!-- Tests Section -->
+            <div class="tests-section">
+                <div class="tests-title">Tests:</div>
+                <div class="tests-list">{{tests}}</div>
+            </div>
+
+            <!-- Additional Notes -->
+            <div class="notes-section">
+                {{additionalNotes}}
+            </div>
+
+            <!-- Signature & Stamp - Only show if content exists -->
+            <div class="signature-section">
+                <div class="signature-box">{{doctorSignatureUrl}}</div>
+                <div class="stamp-box">{{clinicStampUrl}}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+        <div class="footer-timings">Time: Morning 10 am to 3 pm    Evening 5 pm to 10 pm</div>
+        <div class="footer-content">
+            <div class="footer-hospital">TEKISKYPHARMA MEDICAL</div>
+            <div class="footer-address">Opp. Royal Rose Function Hall, Sumaiya Colony, Nanded.</div>
+            <div class="footer-phone">Cell: 8805778609</div>
+        </div>
+    </div>
+</body>
+</html>

@@ -3,7 +3,8 @@ import { protect } from '../middleware/auth.js';
 import {
   createPrescription,
   getPatientById,
-  getMedicalHistory
+  getMedicalHistory,
+  generatePrescriptionPDF
 } from '../controllers/prescriptionController.js';
 
 const router = express.Router();
@@ -14,5 +15,6 @@ router.use(protect);
 router.put('/:patientId', createPrescription);
 router.get('/patient/:patientId', getPatientById);
 router.get('/medical-history', getMedicalHistory);
+router.post('/generate', generatePrescriptionPDF);
 
 export default router;
