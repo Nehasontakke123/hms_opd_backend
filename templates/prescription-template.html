@@ -147,7 +147,7 @@
         .main-content {
             width: 70%;
             background: white;
-            padding: 0;
+            padding: 0 0 50px 0;
             position: relative;
             overflow: hidden;
         }
@@ -159,7 +159,7 @@
             left: 0;
             right: 0;
             width: 100%;
-            height: 45mm;
+            height: 38mm;
             z-index: 1;
             overflow: hidden;
         }
@@ -190,24 +190,34 @@
             position: relative;
             z-index: 2;
             text-align: right;
-            margin: 14mm 15mm 10mm 15mm;
-            padding-bottom: 6mm;
+            margin: 10mm 15mm 8mm 15mm;
+            padding-bottom: 4mm;
+        }
+
+        .doctor-date {
+            font-size: 13px;
+            font-weight: 600;
+            color: #003366;
+            text-align: right;
+            margin-bottom: 4px;
         }
 
         .doctor-name {
             font-size: 16pt;
-            font-weight: bold;
-            color: #0a4ea3;
-            margin-bottom: 3mm;
+            font-weight: 700;
+            color: #003366;
+            margin-bottom: 4px;
             letter-spacing: 0.5pt;
             font-family: Arial, Helvetica, sans-serif;
+            text-align: right;
         }
 
         .doctor-qualifications {
             font-size: 11pt;
             color: #0a4ea3;
-            margin-bottom: 2mm;
+            margin-bottom: 4px;
             font-weight: 500;
+            text-align: right;
         }
 
         .doctor-speciality {
@@ -215,12 +225,7 @@
             color: #0a4ea3;
             margin-bottom: 2mm;
             font-weight: 500;
-        }
-
-        .doctor-regno {
-            font-size: 10pt;
-            color: #0a4ea3;
-            font-weight: 500;
+            text-align: right;
         }
 
         /* Patient Details - Clean Single Row */
@@ -231,7 +236,8 @@
             align-items: baseline;
             flex-wrap: nowrap;
             gap: 7mm;
-            margin: 0 15mm 8mm 15mm;
+            margin: 0 15mm 10px 15mm;
+            margin-bottom: 10px;
             font-size: 11.5pt;
             color: #0a4ea3;
             justify-content: space-between;
@@ -276,18 +282,21 @@
             text-align: right;
         }
 
-        /* Premium RX Symbol - Sharper & Larger */
+        /* Premium RX Symbol - Smaller and Semi-transparent */
         .rx-symbol {
             position: relative;
             z-index: 2;
-            font-size: 56pt;
-            font-weight: 900;
-            color: #0a4ea3;
-            margin: 6mm 15mm 10mm 15mm;
+            font-size: 38px;
+            font-weight: bold;
+            color: #003366;
+            opacity: 0.2;
+            margin-top: 10px;
+            margin-bottom: 5mm;
+            margin-left: 15mm;
+            margin-right: 15mm;
             line-height: 1;
             text-align: left;
             font-family: Arial, Helvetica, sans-serif;
-            letter-spacing: 2pt;
         }
 
         /* Prescription Section */
@@ -301,7 +310,7 @@
             margin-bottom: 10mm;
             font-size: 11.5pt;
             color: #0a4ea3;
-            line-height: 2;
+            line-height: 1.4;
         }
 
         .medicine-number {
@@ -576,10 +585,10 @@
 
             <!-- Premium Doctor Details -->
             <div class="doctor-block">
+                <div class="doctor-date">{{date}}</div>
                 <div class="doctor-name">DR. {{doctorName}}</div>
                 <div class="doctor-qualifications">{{doctorQualifications}}</div>
                 <div class="doctor-speciality">{{doctorSpeciality}}</div>
-                <div class="doctor-regno">Regd. No.: {{doctorRegNo}}</div>
             </div>
 
             <!-- Patient Details - Single Row -->

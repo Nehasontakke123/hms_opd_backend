@@ -28,7 +28,7 @@ const ensureMedicalDir = async () => {
 // @access  Private/Doctor
 export const createPrescription = async (req, res) => {
   try {
-    const { diagnosis, medicines, notes, pdfData, inventoryItems, selectedTests } = req.body;
+    const { diagnosis, medicines, notes, pdfData, inventoryItems, selectedTests, patientWeight, date } = req.body;
 
     const normalizeField = (value) => {
       if (value === undefined || value === null) return '';
@@ -120,6 +120,16 @@ export const createPrescription = async (req, res) => {
       frequency: normalizeField(med.frequency || med.dosePattern || med.frequencyPattern)
     })) : [];
 
+    // Format date - use provided date or fallback to today
+    let prescriptionDate;
+    if (date) {
+      // If date is provided as YYYY-MM-DD, convert to Date object for consistent handling
+      prescriptionDate = date;
+    } else {
+      // Fallback to today's date in YYYY-MM-DD format
+      prescriptionDate = new Date().toISOString().split('T')[0];
+    }
+
     // Update prescription
     patient.prescription = {
       diagnosis,
@@ -134,6 +144,8 @@ export const createPrescription = async (req, res) => {
           }))
         : [],
       selectedTests: Array.isArray(selectedTests) ? selectedTests : [],
+      patientWeight: normalizeField(patientWeight || patient.weight || ''),
+      date: prescriptionDate,
       createdAt: new Date(),
       pdfPath: pdfPath || patient.prescription?.pdfPath || null
     };
@@ -401,9 +413,12 @@ export const generatePrescriptionPDF = async (req, res) => {
     const doctor = patient.doctor || {};
     const prescription = patient.prescription;
 
-    // Format date - use prescription date if available, otherwise fallback to today
+    // Format date - Priority: prescription.date (from form) > prescription.createdAt > patient.registrationDate > today
     let dateValue;
-    if (prescription?.createdAt) {
+    if (prescription?.date) {
+      // Use date from prescription form (stored as YYYY-MM-DD string)
+      dateValue = new Date(prescription.date + 'T00:00:00');
+    } else if (prescription?.createdAt) {
       // Use prescription creation date
       dateValue = new Date(prescription.createdAt);
     } else if (patient?.registrationDate) {
@@ -469,12 +484,15 @@ export const generatePrescriptionPDF = async (req, res) => {
       });
     }
 
-    // Format additional notes - include diagnosis if available
+    // Format diagnosis (separate from notes)
+    const diagnosis = prescription.diagnosis || '';
+    
+    // Format diagnosis notes (BP, Pulse, Temp, etc.)
+    const diagnosisNotes = prescription.diagnosisNotes || prescription.notes || '';
+    
+    // Format additional notes (only other notes, not diagnosis)
     let additionalNotes = '';
-    if (prescription.diagnosis) {
-      additionalNotes += `<div><strong>Diagnosis:</strong> ${escapeHtml(prescription.diagnosis)}</div>`;
-    }
-    if (prescription.notes) {
+    if (prescription.notes && prescription.diagnosisNotes !== prescription.notes) {
       additionalNotes += `<div style="margin-top: 3mm;">${escapeHtml(prescription.notes)}</div>`;
     }
 
@@ -516,10 +534,12 @@ export const generatePrescriptionPDF = async (req, res) => {
       .replace(/\{\{doctorSpeciality\}\}/g, escapeHtml(doctor.specialization || 'General Physician'))
       .replace(/\{\{doctorRegNo\}\}/g, escapeHtml(doctor.registrationNumber || 'N/A'))
       .replace(/\{\{patientName\}\}/g, escapeHtml(patient.fullName || ''))
-      .replace(/\{\{patientWeight\}\}/g, escapeHtml(patient.weight || patient.prescription?.weight || ''))
+      .replace(/\{\{patientWeight\}\}/g, escapeHtml(prescription?.patientWeight || patient.weight || ''))
       .replace(/\{\{patientAge\}\}/g, escapeHtml(String(patient.age || '')))
       .replace(/\{\{patientSex\}\}/g, escapeHtml(patient.gender || ''))
       .replace(/\{\{date\}\}/g, escapeHtml(date))
+      .replace(/\{\{diagnosis\}\}/g, escapeHtml(diagnosis))
+      .replace(/\{\{diagnosisNotes\}\}/g, escapeHtml(diagnosisNotes))
       .replace(/\{\{medicines\}\}/g, medicinesHtml || '<div style="font-style: italic; color: #666;">No medicines prescribed.</div>')
       .replace(/\{\{tests\}\}/g, testsHtml || '<div style="font-style: italic; color: #666;">No tests prescribed.</div>')
       .replace(/\{\{additionalNotes\}\}/g, additionalNotes || '')
@@ -547,11 +567,12 @@ export const generatePrescriptionPDF = async (req, res) => {
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
+      preferCSSPageSize: true,
       margin: {
-        top: '0mm',
-        right: '0mm',
-        bottom: '0mm',
-        left: '0mm'
+        top: '5mm',
+        right: '5mm',
+        bottom: '10mm',
+        left: '5mm'
       }
     });
 

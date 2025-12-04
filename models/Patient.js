@@ -126,6 +126,8 @@ const patientSchema = new mongoose.Schema({
     }],
     notes: String,
     selectedTests: [String],
+    patientWeight: String,
+    date: String,
     createdAt: Date,
     pdfPath: String // Path to PDF file in medical section
   },
